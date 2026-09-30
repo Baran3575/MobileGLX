@@ -2,6 +2,8 @@ package top.mobileglx.plugin;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
+import android.content.ClipData;
+import android.content.ClipboardManager;
 import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
@@ -25,7 +27,14 @@ import org.json.JSONArray;
 import org.json.JSONException;
 import org.json.JSONObject;
 
+import java.io.BufferedReader;
+import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.lang.ref.WeakReference;
+import java.net.HttpURLConnection;
+import java.net.URL;
+import java.net.URLEncoder;
+import java.nio.charset.StandardCharsets;
 import java.util.Locale;
 
 public final class PostActivity extends Activity {
@@ -66,6 +75,16 @@ public final class PostActivity extends Activity {
     private static WeakReference<PostActivity> deliveryTarget = new WeakReference<>(null);
 
     private static boolean nativeLoaded = false;
+
+    /**
+     * mclo.gs oto-upload durumu. Rapor başına bir kez yüklenir (başarılı URL latch'lenir),
+     * başarısızlıkta dokununca tekrar denenir. Tüm alanlar {@link #POST_LOCK} ile korunur.
+     */
+    private static boolean mcloUploadInFlight = false;
+    private static String cachedMcloUrl;
+    private static String cachedMcloFailure;
+
+    private TextView mcloView;
 
     private LinearLayout contentLayout;
     private TextView statusView;
@@ -341,7 +360,178 @@ public final class PostActivity extends Activity {
                 renderBackendSection(backend);
             }
         }
+        addMcloUploadSection(buildFullLogText(json, root, backends));
         addRawJsonSection(json);
+    }
+
+    /**
+     * Raporun mclo.gs'ye otomatik yüklenmesi: tamamı (tüm backend'ler + tüm satırlar).
+     * Başarılı URL ekranda gösterilir (dokun = kopyala), hata olursa dokununca tekrar dener.
+     */
+    private void addMcloUploadSection(String logText) {
+        mcloView = addText("mclo.gs'ye yükleniyor...", 12, COLOR_INFO, false, dp(16));
+        mcloView.setOnClickListener(view -> {
+            synchronized (POST_LOCK) {
+                if (cachedMcloUrl != null) {
+                    copyToClipboard(cachedMcloUrl);
+                    return;
+                }
+                if (cachedMcloFailure != null && !mcloUploadInFlight) {
+                    cachedMcloFailure = null;
+                } else {
+                    return;
+                }
+            }
+            mcloView.setText("mclo.gs'ye yükleniyor...");
+            mcloView.setTextColor(COLOR_INFO);
+            startMcloUpload(logText);
+        });
+        synchronized (POST_LOCK) {
+            if (cachedMcloUrl != null || cachedMcloFailure != null) {
+                renderMcloState();
+                return;
+            }
+            if (!mcloUploadInFlight) {
+                mcloUploadInFlight = true;
+            } else {
+                return;
+            }
+        }
+        startMcloUpload(logText);
+    }
+
+    private void renderMcloState() {
+        if (mcloView == null) return;
+        final String url;
+        final String failure;
+        synchronized (POST_LOCK) {
+            url = cachedMcloUrl;
+            failure = cachedMcloFailure;
+        }
+        if (url != null) {
+            mcloView.setText("mclo.gs: " + url + " (dokun=kopyala)");
+            mcloView.setTextColor(COLOR_PASS);
+        } else if (failure != null) {
+            mcloView.setText("mclo.gs yükleme başarısız: " + failure + " (tekrar için dokun)");
+            mcloView.setTextColor(COLOR_WARN);
+        }
+    }
+
+    private void copyToClipboard(String text) {
+        try {
+            ClipboardManager clipboard = (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard == null) return;
+            clipboard.setPrimaryClip(ClipData.newPlainText("mclo.gs", text));
+            mcloView.setText("mclo.gs: " + text + " (kopyalandı)");
+        } catch (Throwable t) {
+            Log.e(TAG, "clipboard failed", t);
+        }
+    }
+
+    private static void startMcloUpload(String logText) {
+        new Thread(() -> {
+            String url = null;
+            String failure = null;
+            try {
+                url = uploadToMclo(logText);
+            } catch (Throwable t) {
+                failure = t.getClass().getSimpleName() + ": " + String.valueOf(t.getMessage());
+                Log.e(TAG, "mclo.gs upload failed", t);
+            }
+            synchronized (POST_LOCK) {
+                mcloUploadInFlight = false;
+                if (url != null) {
+                    cachedMcloUrl = url;
+                    cachedMcloFailure = null;
+                } else {
+                    cachedMcloFailure = failure != null ? failure : "unknown error";
+                }
+            }
+            PostActivity target;
+            synchronized (POST_LOCK) {
+                target = deliveryTarget.get();
+            }
+            if (target != null) {
+                target.runOnUiThread(target::renderMcloState);
+            }
+        }, "MobileGLXMcloUpload").start();
+    }
+
+    private static String uploadToMclo(String logText) throws Exception {
+        byte[] body = ("content=" + URLEncoder.encode(logText, "UTF-8")).getBytes(StandardCharsets.UTF_8);
+        HttpURLConnection connection = (HttpURLConnection) new URL("https://api.mclo.gs/1/log").openConnection();
+        try {
+            connection.setRequestMethod("POST");
+            connection.setRequestProperty("Content-Type", "application/x-www-form-urlencoded");
+            connection.setRequestProperty("User-Agent", "MobileGLX-DriverPOST");
+            connection.setConnectTimeout(15000);
+            connection.setReadTimeout(15000);
+            connection.setDoOutput(true);
+            connection.setFixedLengthStreamingMode(body.length);
+            try (OutputStream out = connection.getOutputStream()) {
+                out.write(body);
+            }
+            StringBuilder response = new StringBuilder();
+            try (BufferedReader reader = new BufferedReader(new InputStreamReader(
+                    connection.getResponseCode() < 400 ? connection.getInputStream() : connection.getErrorStream(),
+                    StandardCharsets.UTF_8))) {
+                String line;
+                while ((line = reader.readLine()) != null) {
+                    response.append(line);
+                }
+            }
+            JSONObject json = new JSONObject(response.toString());
+            if (!json.optBoolean("success", false)) {
+                throw new IllegalStateException(json.optString("error", "upload rejected"));
+            }
+            String url = json.optString("url", "");
+            if (url.isEmpty()) throw new IllegalStateException("empty url in response");
+            return url;
+        } finally {
+            connection.disconnect();
+        }
+    }
+
+    /** mclo.gs'ye giden tam metin: özet + her backend'in tüm satırları (detaylarıyla). */
+    private String buildFullLogText(String json, JSONObject root, JSONArray backends) {
+        String version = "";
+        try {
+            version = getPackageManager().getPackageInfo(getPackageName(), 0).versionName;
+        } catch (Throwable ignored) {
+        }
+        StringBuilder log = new StringBuilder();
+        log.append("MobileGLX Driver POST ").append(version).append('\n');
+        log.append(Build.MANUFACTURER).append(' ').append(Build.MODEL)
+                .append(" (Android ").append(Build.VERSION.RELEASE)
+                .append(", API ").append(Build.VERSION.SDK_INT).append(")\n\n");
+        try {
+            for (int i = 0; i < backends.length(); ++i) {
+                JSONObject backend = backends.optJSONObject(i);
+                if (backend == null) continue;
+                log.append(backend.optString("backend", backend.optString("name", "backend"))).append('\n');
+                log.append("Verdict: ").append(backend.optString("verdict", "?")).append('\n');
+                String renderer = backend.optString("renderer", "");
+                if (!renderer.isEmpty()) {
+                    log.append(renderer).append('\n');
+                }
+                log.append('\n');
+                JSONArray checks = backend.optJSONArray("checks");
+                if (checks != null) {
+                    for (int j = 0; j < checks.length(); ++j) {
+                        JSONObject check = checks.optJSONObject(j);
+                        if (check == null) continue;
+                        log.append('[').append(check.optString("status", "?")).append("] ")
+                                .append(check.optString("name", "?")).append(": ")
+                                .append(check.optString("detail", check.optString("message", ""))).append('\n');
+                    }
+                }
+                log.append('\n');
+            }
+        } catch (Throwable t) {
+            Log.e(TAG, "log text build failed, falling back to raw json", t);
+            return json;
+        }
+        return log.toString();
     }
 
     private static JSONArray extractBackends(JSONObject root) {
@@ -814,6 +1004,7 @@ public final class PostActivity extends Activity {
         statusView.setText("Self-test failed.");
         statusView.setTextColor(COLOR_FAIL);
         addText(message, 12, COLOR_FAIL, false, dp(8));
+        addMcloUploadSection("MobileGLX Driver POST\nSelf-test failed:\n" + message);
     }
 
     private TextView addText(String text, int sizeSp, int color, boolean bold, int topMarginPx) {

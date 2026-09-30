@@ -32,6 +32,7 @@ plugin_contents=$(unzip -Z1 "$plugin_apk")
 
 require 'top.mobileglx.plugin' "$plugin_manifest" 'plugin package name'
 require 'MobileGLX' "$plugin_manifest" 'plugin label'
+require 'android.permission.INTERNET' "$plugin_manifest" 'INTERNET permission for mclo.gs upload'
 require 'fclPlugin' "$plugin_manifest" 'legacy plugin marker'
 require 'fclPlugin_V2' "$plugin_manifest" 'V2 plugin marker'
 require 'LIBGL_ES=3:POJAV_RENDERER=opengles3:MOBILEGL_BACKEND_TYPE=DirectGLES' "$plugin_manifest" 'V1 DirectGLES fallback'

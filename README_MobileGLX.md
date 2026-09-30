@@ -45,6 +45,25 @@ Not: APK `arm64-v8a` içerir (gerçek cihazların neredeyse tamamı). x86_64
 (emülatör) gerekiyorsa Actions → MobileGLX Release → Run workflow →
 `abis=all` ile manuel build alın.
 
+### Driver POST + otomatik mclo.gs yükleme
+
+Uygulamayı açınca **MobileGLX Driver POST** self-test çalışır. Rapor hazır
+olunca **tamamı otomatik olarak mclo.gs'ye yüklenir** (özet değil; her backend'in
+tüm satırları + detayları + cihaz bilgisi) ve ekranda link belirir
+(dokun = panoya kopyala, hata olursa dokun = tekrar dene).
+
+Örnek: Samsung Xclipse 940'da iki backend de `DEGRADED` verebilir — bu tek başına
+bozukluk demek değildir (fp64/64-bit vertex her zaman WARN'dir, ANGLE'da
+InstanceID satırı WARN'dir). Tam log linkini at, hangi satırların FAIL olduğuna
+bakıp backend'i ona göre düzeltelim.
+
+### Cihaza göre backend önerisi
+
+- Genel: `DirectGLES` (varsayılan, en uyumlu).
+- Vulkan 1.2+ ve düzgün driver'lı yeni cihazlar (örn. Samsung Xclipse 940):
+  `DirectVulkan` dene — driver'a direkt konuşur, ANGLE katmanı yoktur.
+  Disk pipeline cache otomatiktir (ilk açılış derler, sonrakiler atlar).
+
 ## Backend ve Varsayılanlar
 
 | Ayar | Varsayılan | Neden |
