@@ -44,7 +44,7 @@ std::vector<std::string> SplitSemicolonList(const std::string& value) {
 }
 
 jobject MakeResult(JNIEnv* env, const mobilegl_trace::Result& result) {
-    jclass clazz = env->FindClass("top/mobilegl/plugin/trace/TraceReplayActivity$TraceReplayResult");
+    jclass clazz = env->FindClass("top/mobileglx/plugin/trace/TraceReplayActivity$TraceReplayResult");
     if (clazz == nullptr) {
         return nullptr;
     }
@@ -98,7 +98,7 @@ public:
 } // namespace
 
 extern "C" JNIEXPORT jobject JNICALL
-Java_top_mobilegl_plugin_trace_TraceReplayActivity_nativeRunTraceReplay(JNIEnv* env,
+Java_top_mobileglx_plugin_trace_TraceReplayActivity_nativeRunTraceReplay(JNIEnv* env,
                                                                         jclass,
                                                                         jobject surface,
                                                                         jstring tracePath,

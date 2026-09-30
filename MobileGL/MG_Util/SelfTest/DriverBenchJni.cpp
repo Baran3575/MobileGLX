@@ -324,7 +324,7 @@ namespace {
 
 } // namespace
 
-extern "C" JNIEXPORT jstring JNICALL Java_top_mobilegl_plugin_BenchService_nativeRunDriverBench(
+extern "C" JNIEXPORT jstring JNICALL Java_top_mobileglx_plugin_BenchService_nativeRunDriverBench(
     JNIEnv* env, jclass, jstring backendType, jint frames, jint warmupFrames) {
     const char* backendChars = backendType ? env->GetStringUTFChars(backendType, nullptr) : nullptr;
     const std::string backend = backendChars ? backendChars : "DirectGLES";

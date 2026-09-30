@@ -172,7 +172,7 @@ namespace {
     }
 } // namespace
 
-extern "C" JNIEXPORT jstring JNICALL Java_top_mobilegl_plugin_PostActivity_nativeRunDriverPost(JNIEnv* env, jclass) {
+extern "C" JNIEXPORT jstring JNICALL Java_top_mobileglx_plugin_PostActivity_nativeRunDriverPost(JNIEnv* env, jclass) {
     String json;
     try {
         const BackendPostReport glesReport = MobileGL::MG_Util::SelfTest::RunGlesDriverPost();
