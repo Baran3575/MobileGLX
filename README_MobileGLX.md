@@ -74,10 +74,12 @@ okunur kılar. Render distance/gölge (Iris) kıs, Sodium varsa açık tut.
 MobileGLX tarafı (Vulkan):
 - Command-buffer split eşiği fork'ta **32768** (upstream 16384): ağır chunk
   frame'lerinde submit + render-pass STORE/LOAD sayısı yarıya iner.
-- Takılma teşhisi için her 600 frame'de logcat'e tek satır düşer:
-  `DirectVulkan: pacing last 600 frames: ...` (ort. fps, max ms, 50ms üstü
-  takılma sayısı, split artışı). PC'den `adb logcat | grep "pacing last"`
-  ile alıp at — bir sonraki optimizasyon turunu bu sayıya göre yapacağım.
+- Takılma teşhisi (PC/adb gerekmez): her 600 frame'de oyun klasörüne
+  `mobileglx_pacing.log` dosyasına tek satır eklenir (ort. fps, max ms, 50ms
+  üstü takılma sayısı, split artışı; dosya 64KB'ta döner). Oyun kapalıyken
+  ZL2'nin dosya yöneticisinden instances klasöründe bulup içeriğini at —
+  bir sonraki turu bu sayıya göre gireceğim. (Klasöre yazılamazsa logcat'e
+  düşmeye devam eder.)
 
 ## Backend ve Varsayılanlar
 

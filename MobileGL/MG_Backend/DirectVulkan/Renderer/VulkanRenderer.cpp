@@ -40,6 +40,10 @@
 #ifdef __ANDROID__
 #include <sys/system_properties.h>
 #endif
+#include <cstdio>
+#if defined(__linux__) || defined(__APPLE__)
+#include <unistd.h>
+#endif
 
 #if defined(__APPLE__)
 #include <CoreGraphics/CoreGraphics.h>
@@ -12896,12 +12900,16 @@ void main() {
             if (ms > 50.0) ++m_pacingWindowHitches;
             if (m_pacingWindowFrames >= 600) {
                 const double avg = m_pacingWindowTotalMs / static_cast<double>(m_pacingWindowFrames);
-                MGLOG_I("DirectVulkan: pacing last 600 frames: avg %.1f fps (%.2f ms), max %.1f ms, "
-                        "hitches(>50ms) %llu, oversized splits +%llu",
-                        1000.0 / (avg > 0.0 ? avg : 1.0), avg, m_pacingWindowMaxMs,
-                        static_cast<unsigned long long>(m_pacingWindowHitches),
-                        static_cast<unsigned long long>(m_oversizedRecordingSplits -
-                                                        m_pacingSplitsAtLastLog));
+                char line[256];
+                std::snprintf(line, sizeof(line),
+                              "pacing last 600 frames: avg %.1f fps (%.2f ms), max %.1f ms, "
+                              "hitches(>50ms) %llu, oversized splits +%llu",
+                              1000.0 / (avg > 0.0 ? avg : 1.0), avg, m_pacingWindowMaxMs,
+                              static_cast<unsigned long long>(m_pacingWindowHitches),
+                              static_cast<unsigned long long>(m_oversizedRecordingSplits -
+                                                              m_pacingSplitsAtLastLog));
+                MGLOG_I("DirectVulkan: %s", line);
+                AppendPacingLogLine(line);
                 m_pacingWindowFrames = 0;
                 m_pacingWindowHitches = 0;
                 m_pacingWindowTotalMs = 0.0;
@@ -12911,6 +12919,62 @@ void main() {
         }
         m_lastPresentTime = now;
         m_lastPresentTimeValid = true;
+    }
+
+    String VulkanRenderer::ResolvePacingLogPath() {
+        if (m_pacingLogResolved) return m_pacingLogPath;
+        m_pacingLogResolved = true;
+        // Preferred: the game instance dir (the process working directory) - readable
+        // through the launcher's own file manager, no root/adb needed.
+#if defined(__linux__) || defined(__APPLE__)
+        {
+            char cwd[1024];
+            if (::getcwd(cwd, sizeof(cwd)) != nullptr) {
+                String candidate = String(cwd) + "/mobileglx_pacing.log";
+                if (std::FILE* probe = std::fopen(candidate.c_str(), "a")) {
+                    std::fclose(probe);
+                    m_pacingLogPath = candidate;
+                    return m_pacingLogPath;
+                }
+            }
+        }
+#endif
+        // Fallback: next to the pipeline cache blob (needs root/adb to read, still
+        // useful for bug reports from rooted devices).
+        if (m_pipelineFactory != nullptr) {
+            const String& cachePath = m_pipelineFactory->GetCacheFilePath();
+            const SizeT slash = cachePath.find_last_of('/');
+            if (slash != String::npos) {
+                String candidate = cachePath.substr(0, slash) + "/pacing.log";
+                if (std::FILE* probe = std::fopen(candidate.c_str(), "a")) {
+                    std::fclose(probe);
+                    m_pacingLogPath = candidate;
+                }
+            }
+        }
+        return m_pacingLogPath;
+    }
+
+    void VulkanRenderer::AppendPacingLogLine(const String& line) {
+        static constexpr long kPacingLogMaxBytes = 65536;
+        const String path = ResolvePacingLogPath();
+        if (path.empty()) return;
+        std::FILE* file = std::fopen(path.c_str(), "a");
+        if (file == nullptr) {
+            m_pacingLogResolved = false; // retry resolution next time (dir may appear later)
+            return;
+        }
+        // Rotate: past the cap, restart the file with just this line.
+        long size = -1;
+        if (std::fseek(file, 0, SEEK_END) == 0) size = std::ftell(file);
+        if (size > kPacingLogMaxBytes) {
+            std::fclose(file);
+            file = std::fopen(path.c_str(), "w");
+            if (file == nullptr) return;
+        }
+        std::fputs(line.c_str(), file);
+        std::fputc('\n', file);
+        std::fclose(file);
     }
 
     void VulkanRenderer::Present() {

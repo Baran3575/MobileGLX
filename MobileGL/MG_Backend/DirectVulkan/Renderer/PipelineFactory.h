@@ -190,6 +190,9 @@ namespace MobileGL::MG_Backend::DirectVulkan {
 
         // Writes the driver blob to m_pipelineCachePath (no-op when memory-only).
         void PersistPipelineCacheToDisk();
+        // Full blob file path, or empty when the cache is memory-only. Used for
+        // co-locating diagnostics (pacing log) with the cache.
+        const String& GetCacheFilePath() const { return m_pipelineCachePath; }
 
         VkDevice m_device = VK_NULL_HANDLE;
         const VulkanRendererConfig& m_config;

@@ -531,6 +531,13 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         std::chrono::steady_clock::time_point m_lastPresentTime{};
         Bool m_lastPresentTimeValid = false;
         void LogPresentPacing();
+        // Where pacing lines are mirrored for on-device reading (no adb): the game
+        // instance dir (visible in the launcher's file manager) preferred, the
+        // pipeline-cache dir as fallback, empty when neither is writable.
+        String m_pacingLogPath;
+        Bool m_pacingLogResolved = false;
+        String ResolvePacingLogPath();
+        void AppendPacingLogLine(const String& line);
 
         NativeWindowType m_window = 0;
         void* m_platformDisplay = nullptr;
