@@ -29,10 +29,21 @@ varsayılanları, paket kimliğini ve build altyapısını Minecraft'a göre aya
    (veya Actions → MobileGLX APK / MobileGLX Release artifact'larından alın).
 2. APK'yı kurun (upstream MobileGL plugin'i ile yan yana durabilir;
    paket adı farklıdır: `top.mobileglx.plugin`).
-3. Launcher'da renderer olarak **MobileGLX / opengles3** seçin:
-   - FCL (FoldCraftLauncher): Ayarlar → Renderer → MobileGLX
-   - PojavLauncher / Zalith: renderer listesinde MobileGLX
-4. Oyunu **Minecraft 26.3 vanilla veya Fabric 26.3** profiliyle başlatın.
+3. Launcher'da renderer olarak **MobileGLX / opengles3** seçin.
+
+### Zalith Launcher 2 (v2.6.1)
+
+1. ZL2 v2.6.1'i kurun, `MobileGLX-plugin-release-*.apk` dosyasını kurun.
+2. ZL2 → Ayarlar → Renderer → **MobileGLX** (V2 plugin olarak görünür;
+   V1 fallback `fclPlugin`/`pojavEnv` de içerir, eski launcher'larda da çalışır).
+3. Oyunu **Minecraft 26.3 vanilla veya Fabric 26.3** profiliyle başlatın.
+   Plugin `minMCVer/maxMCVer = 26.3` bildirdiği için ZL2 onu 26.3 profillerinde listeler.
+4. Backend: önce `DirectGLES` (varsayılan). Vulkan 1.2+ cihazda takılma olursa
+   `DirectVulkan` + disk pipeline cache (otomatik) devreye girer.
+
+Not: APK `arm64-v8a` içerir (gerçek cihazların neredeyse tamamı). x86_64
+(emülatör) gerekiyorsa Actions → MobileGLX Release → Run workflow →
+`abis=all` ile manuel build alın.
 
 ## Backend ve Varsayılanlar
 
