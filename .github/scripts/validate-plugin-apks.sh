@@ -30,13 +30,13 @@ plugin_resource_text=$(tr -d '"' <<<"$plugin_resources")
 trace_manifest=$("$aapt2" dump xmltree --file AndroidManifest.xml "$trace_apk")
 plugin_contents=$(unzip -Z1 "$plugin_apk")
 
-require 'top.mobilegl.plugin' "$plugin_manifest" 'plugin package name'
-require 'MobileGL' "$plugin_manifest" 'plugin label'
+require 'top.mobileglx.plugin' "$plugin_manifest" 'plugin package name'
+require 'MobileGLX' "$plugin_manifest" 'plugin label'
 require 'fclPlugin' "$plugin_manifest" 'legacy plugin marker'
 require 'fclPlugin_V2' "$plugin_manifest" 'V2 plugin marker'
 require 'LIBGL_ES=3:POJAV_RENDERER=opengles3:MOBILEGL_BACKEND_TYPE=DirectGLES' "$plugin_manifest" 'V1 DirectGLES fallback'
 require 'string/config' "$plugin_resources" 'V2 renderer configuration resource'
-require '{displayName:MobileGL,rendererId:opengles3' "$plugin_resource_text" 'V2 MobileGL entry and renderer ID'
+require '{displayName:MobileGLX,rendererId:opengles3' "$plugin_resource_text" 'V2 MobileGLX entry and renderer ID'
 require 'rendererGLPath:**|libMobileGL.so' "$plugin_resource_text" 'V2 GL library path'
 require 'rendererEGLPath:**|libMobileGL.so' "$plugin_resource_text" 'V2 EGL library path'
 require 'key:LIBGL_ES,value:3' "$plugin_resource_text" 'V2 fixed LIBGL_ES variable'
@@ -49,7 +49,10 @@ require 'key:MOBILEGL_MAGMA_R11G11B10F_FALLBACK' "$plugin_resource_text" 'V2 Mag
 require 'key:MOBILEGL_MAGMA_FRAMESINFLIGHT' "$plugin_resource_text" 'V2 Magma frames-in-flight setting'
 require 'key:MOBILEGL_ESPRYT_AVOID_SAMPLER_MIPMAP_MIN_FILTER' "$plugin_resource_text" 'V2 sampler workaround toggle'
 require 'key:MOBILEGL_COHERENT_AS_FLUSH' "$plugin_resource_text" 'V2 coherent-as-flush toggle'
+require 'key:MOBILEGL_RELAXED_SEMANTICS' "$plugin_resource_text" 'V2 relaxed-semantics toggle'
 require 'key:MOBILEGL_ESPRYT_USE_ANGLE' "$plugin_resource_text" 'V2 ANGLE toggle'
+# MobileGLX Minecraft 26.3 odağı: plugin yalnızca 26.3'e hedeflenir.
+require '26.3' "$plugin_resource_text" 'V2 MC 26.3 target'
 
 if [[ $(grep -Fc 'fclPlugin_V2' <<<"$plugin_manifest") -ne 1 ]]; then
   echo '::error::Plugin manifest must expose exactly one V2 descriptor' >&2
@@ -61,8 +64,8 @@ if ! grep -Eq '^lib/[^/]+/libMobileGL\.so$' <<<"$plugin_contents"; then
   exit 1
 fi
 
-require 'top.mobilegl.plugin.trace' "$trace_manifest" 'trace package name'
-require 'top.mobilegl.plugin.TRACE_REPLAY' "$trace_manifest" 'trace replay action'
+require 'top.mobileglx.plugin.trace' "$trace_manifest" 'trace package name'
+require 'top.mobileglx.plugin.TRACE_REPLAY' "$trace_manifest" 'trace replay action'
 if grep -Fq 'fclPlugin' <<<"$trace_manifest"; then
   echo '::error::Trace APK must not advertise renderer-plugin metadata' >&2
   exit 1
@@ -72,4 +75,4 @@ if grep -Fq 'android.intent.action.MAIN' <<<"$trace_manifest"; then
   exit 1
 fi
 
-echo 'Validated unified MobileGL plugin APK and isolated trace APK.'
+echo 'Validated unified MobileGLX plugin APK and isolated trace APK.'

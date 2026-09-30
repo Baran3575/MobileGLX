@@ -1,6 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
-    <string name="app_name">MobileGL</string>
+    <string name="app_name">MobileGLX</string>
     <string name="mobilegl_backend_type_title">Rendering backend</string>
     <string name="mobilegl_disable_timerquery_title">Disable GPU timer queries</string>
     <string name="mobilegl_disable_subgroup_title">Disable Vulkan shader subgroups</string>

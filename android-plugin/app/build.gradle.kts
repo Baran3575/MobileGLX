@@ -74,9 +74,13 @@ val mobileGlApkSuffix = (findProperty("mobilegl.apkSuffix") ?: System.getenv("MO
     .toString()
     .ifBlank { "nogit" }
 
+// MobileGLX: Minecraft Java odağı. Desteklenen sürümler tek yerden yönetilir.
+val mobileGlxMcVersion = "26.3"
+val mobileGlxMcSupportNote = "vanilla + Fabric (Loader 0.19.5, Fabric API 0.161.0+26.3, Java 25)"
+
 val pluginRendererConfig = buildJsonValue {
     renderer(
-        displayName = "MobileGL",
+        displayName = "MobileGLX",
         rendererId = "opengles3",
         rendererGLPath = nativePath("libMobileGL.so"),
         rendererEGLPath = nativePath("libMobileGL.so"),
@@ -88,53 +92,65 @@ val pluginRendererConfig = buildJsonValue {
                 title = RendererConfig.MetaString("mobilegl_backend_type_title"),
                 items = RendererConfig.EnvItems("DirectGLES", listOf("DirectVulkan")),
             )
-            toggleable("MOBILEGL_DISABLE_TIMERQUERY", "1", false, RendererConfig.MetaString("mobilegl_disable_timerquery_title"))
+            // Minecraft 26.3 varsayılanları:
+            // - F3/profiler çökmelerine karşı timer query kapalı
+            // - Flywheel/Create + Embeddium kalıcı-map uyumu için coherent-as-flush açık
+            // - Sodium/Iris toleransı için relaxed semantics açık
+            toggleable("MOBILEGL_DISABLE_TIMERQUERY", "1", true, RendererConfig.MetaString("mobilegl_disable_timerquery_title"))
             toggleable("MOBILEGL_MAGMA_DISABLE_SUBGROUP", "1", false, RendererConfig.MetaString("mobilegl_disable_subgroup_title"))
             toggleable("MOBILEGL_MAGMA_R11G11B10F_FALLBACK", "1", false, RendererConfig.MetaString("mobilegl_magma_r11g11b10f_fallback_title"))
             customizable("MOBILEGL_MAGMA_FRAMESINFLIGHT", "3", RendererConfig.MetaString("mobilegl_magma_frames_inflight_title"))
             toggleable("MOBILEGL_ESPRYT_AVOID_SAMPLER_MIPMAP_MIN_FILTER", "1", false, RendererConfig.MetaString("mobilegl_avoid_sampler_mipmap_min_filter_title"))
-            toggleable("MOBILEGL_COHERENT_AS_FLUSH", "1", false, RendererConfig.MetaString("mobilegl_coherent_as_flush_title"))
-            toggleable("MOBILEGL_RELAXED_SEMANTICS", "1", false, RendererConfig.MetaString("mobilegl_relaxed_semantics_title"))
+            toggleable("MOBILEGL_COHERENT_AS_FLUSH", "1", true, RendererConfig.MetaString("mobilegl_coherent_as_flush_title"))
+            toggleable("MOBILEGL_RELAXED_SEMANTICS", "1", true, RendererConfig.MetaString("mobilegl_relaxed_semantics_title"))
             toggleable("MOBILEGL_ESPRYT_USE_ANGLE", "1", false, RendererConfig.MetaString("mobilegl_use_angle_title"))
         },
-        minMCVer = null,
-        maxMCVer = null,
+        minMCVer = mobileGlxMcVersion,
+        maxMCVer = mobileGlxMcVersion,
     )
 }
 
 android {
-    namespace = "top.mobilegl.plugin"
+    namespace = "top.mobileglx.plugin"
     compileSdk = 34
     ndkVersion = "27.3.13750724"
 
     defaultConfig {
-        applicationId = "top.mobilegl.plugin"
+        applicationId = "top.mobileglx.plugin"
         mobileGlApplicationIdSuffix().takeIf { it.isNotEmpty() }?.let { applicationIdSuffix = it }
         minSdk = 26
         targetSdk = 34
         versionCode = mobileGlVersionMajor * 1_000_000 + mobileGlVersionMinor * 10_000 + mobileGlMonthlyRevision
-        versionName = "%d.%02d.%s".format(mobileGlVersionMajor, mobileGlVersionMinor, mobileGlGitShortHash)
+        // Upstream sürüm şeması korunur (versionCode geriye gitmesin diye Minor düşürülmez);
+        // desteklenen MC sürümü suffix olarak eklenir.
+        versionName = "%d.%02d.%s-mc%s".format(mobileGlVersionMajor, mobileGlVersionMinor, mobileGlGitShortHash, mobileGlxMcVersion)
         resValue("string", "config", pluginRendererConfig)
 
         manifestPlaceholders.putAll(legacyManifest {
-            displayName = "MobileGL"
-            rendererName = "MobileGL"
+            displayName = "MobileGLX"
+            rendererName = "MobileGLX"
             rendererLib = "libMobileGL.so"
             eglLib = "/libMobileGL.so"
-            minMCVer = ""
-            maxMCVer = ""
+            minMCVer = mobileGlxMcVersion
+            maxMCVer = mobileGlxMcVersion
             boatEnv {
                 put("LIBGL_ES", "3")
                 put("POJAV_RENDERER", "opengles3")
                 put("MOBILEGL_BACKEND_TYPE", "DirectGLES")
+                put("MOBILEGL_DISABLE_TIMERQUERY", "1")
+                put("MOBILEGL_COHERENT_AS_FLUSH", "1")
+                put("MOBILEGL_RELAXED_SEMANTICS", "1")
             }
             pojavEnv {
                 put("LIBGL_ES", "3")
                 put("POJAV_RENDERER", "opengles3")
                 put("MOBILEGL_BACKEND_TYPE", "DirectGLES")
+                put("MOBILEGL_DISABLE_TIMERQUERY", "1")
+                put("MOBILEGL_COHERENT_AS_FLUSH", "1")
+                put("MOBILEGL_RELAXED_SEMANTICS", "1")
             }
         })
-        manifestPlaceholders["appLabel"] = "MobileGL"
+        manifestPlaceholders["appLabel"] = "MobileGLX"
 
         ndk {
             abiFilters += mobileGlAbiFilters()
@@ -182,8 +198,13 @@ android {
         getByName("release") {
             isDebuggable = debuggableRelease
             isMinifyEnabled = false
-            if (releaseSigningReady) {
-                signingConfig = signingConfigs.getByName("release")
+            // MobileGLX: release secret'leri yoksa (fork/PR buildleri) debug key ile
+            // imzala ki APK her zaman kurulabilir ve apksigner verify geçsin.
+            // Secret'ler varsa release imza kullanılır.
+            signingConfig = if (releaseSigningReady) {
+                signingConfigs.getByName("release")
+            } else {
+                signingConfigs.getByName("debug")
             }
         }
     }
@@ -206,8 +227,8 @@ android {
 android.applicationVariants.configureEach {
     outputs.configureEach {
         (this as ApkVariantOutputImpl).outputFileName = when (flavorName) {
-            "plugin" -> "MobileGL-plugin-release-$mobileGlApkSuffix.apk"
-            "trace" -> "MobileGL-plugin-trace-release-$mobileGlApkSuffix.apk"
+            "plugin" -> "MobileGLX-plugin-release-$mobileGlApkSuffix.apk"
+            "trace" -> "MobileGLX-plugin-trace-release-$mobileGlApkSuffix.apk"
             else -> outputFileName
         }
     }

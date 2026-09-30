@@ -18,9 +18,9 @@ from typing import Any, Sequence
 from rdc.discover import find_renderdoc
 
 
-DEFAULT_PACKAGE = "top.mobilegl.plugin.trace"
-DEFAULT_ACTIVITY = "top.mobilegl.plugin.trace.TraceReplayActivity"
-DEFAULT_ACTION = "top.mobilegl.plugin.TRACE_REPLAY"
+DEFAULT_PACKAGE = "top.mobileglx.plugin.trace"
+DEFAULT_ACTIVITY = "top.mobileglx.plugin.trace.TraceReplayActivity"
+DEFAULT_ACTION = "top.mobileglx.plugin.TRACE_REPLAY"
 RENDERDOC_VULKAN_LAYER = "VK_LAYER_RENDERDOC_Capture"
 RENDERDOC_GLES_LAYER = "libVkLayer_GLES_RenderDoc.so"
 RENDERDOC_CMD_PACKAGE = "org.renderdoc.renderdoccmd.arm64"

@@ -1,0 +1,141 @@
+name: MobileGLX Release
+
+# Tag'den Release: örn. `mc26.3-1` veya `v26.08-mc26.3-1` push'layınca
+# plugin APK build edilip GitHub Release'e eklenir.
+# Manuel tetikleme de aynı APK'ları artifact olarak üretir.
+
+on:
+  push:
+    tags:
+      - 'mc26.3*'
+      - 'v*'
+  workflow_dispatch:
+    inputs:
+      tag:
+        description: 'Release tag adı (örn. mc26.3-1). Boşsa release oluşturulmaz, sadece artifact üretilir.'
+        required: false
+        default: ''
+
+jobs:
+  build-release:
+    runs-on: ubuntu-latest
+    permissions:
+      actions: write
+      contents: write
+    env:
+      CCACHE_BASEDIR: ${{ github.workspace }}
+      CCACHE_COMPRESS: "true"
+      CCACHE_DIR: ${{ github.workspace }}/.ccache
+      CCACHE_MAXSIZE: 4G
+      CCACHE_NOHASHDIR: "true"
+      MOBILEGL_CMAKE_COMPILER_LAUNCHER: ccache
+
+    steps:
+      - name: Checkout repo
+        uses: actions/checkout@v6
+        with:
+          submodules: recursive
+
+      - name: Set artifact metadata
+        run: |
+          echo "date_today=$(date +'%Y-%m-%d')" >> "$GITHUB_ENV"
+          if [[ "${GITHUB_REF}" == refs/tags/* ]]; then
+            echo "release_tag=${GITHUB_REF#refs/tags/}" >> "$GITHUB_ENV"
+          elif [[ -n "${{ inputs.tag }}" ]]; then
+            echo "release_tag=${{ inputs.tag }}" >> "$GITHUB_ENV"
+          else
+            echo "release_tag=${GITHUB_SHA:0:7}" >> "$GITHUB_ENV"
+          fi
+
+      - name: Set up JDK
+        uses: actions/setup-java@v5
+        with:
+          distribution: zulu
+          java-version: '17'
+
+      - name: Setup Gradle
+        uses: gradle/actions/setup-gradle@v6
+        with:
+          gradle-version: 8.10.2
+
+      - name: Restore ccache
+        uses: actions/cache/restore@v5
+        with:
+          path: .ccache
+          key: ${{ runner.os }}-apk-build-ccache-v1
+          restore-keys: |
+            ${{ runner.os }}-apk-build-ccache-
+
+      - name: Install ccache
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y ccache
+          ccache --version
+
+      - name: Setup Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          accept-android-sdk-licenses: false
+
+      - name: Accept Android SDK licenses
+        run: yes | sdkmanager --licenses >/dev/null
+
+      - name: Install Android NDK
+        run: |
+          sdkmanager "ndk;27.3.13750724"
+          echo "ndk.dir=$ANDROID_HOME/ndk/27.3.13750724" >> android-plugin/local.properties
+
+      - name: Update glslang external sources
+        working-directory: 3rdparty/glslang
+        run: python update_glslang_sources.py
+
+      - name: Build MobileGLX plugin APK (arm64-v8a)
+        run: gradle --no-daemon -p android-plugin :app:assemblePluginRelease -Pmobilegl.apkSuffix="${{ env.release_tag }}" -Pmobilegl.logLevel=MOBILEGL_LOG_LEVEL_INFO --parallel --max-workers "$(nproc)"
+        env:
+          SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
+          SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
+          SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
+
+      - name: Show ccache stats
+        if: always()
+        run: ccache --show-stats
+
+      - name: Verify APK metadata and packaging
+        run: |
+          AAPT2="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -n 1)"
+          plugin_apk="android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${{ env.release_tag }}.apk"
+          test -f "${plugin_apk}"
+          # Release sadece plugin APK içerir; tam iki-APK doğrulaması apk.yml'de yapılır.
+          # Burada paketin MobileGLX kimliği ve native lib varlığı kontrol edilir.
+          "${AAPT2}" dump xmltree --file AndroidManifest.xml "${plugin_apk}" | grep -Fq 'top.mobileglx.plugin'
+          "${AAPT2}" dump xmltree --file AndroidManifest.xml "${plugin_apk}" | grep -Fq 'MobileGLX'
+          unzip -Z1 "${plugin_apk}" | grep -Eq '^lib/[^/]+/libMobileGL\.so$'
+          echo "MobileGLX plugin APK OK: ${plugin_apk}"
+
+      - name: Verify signed APK
+        run: |
+          APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
+          APK="android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${{ env.release_tag }}.apk"
+          "$APKSIGNER" verify --verbose "$APK"
+
+      - name: Upload plugin APK artifact
+        uses: actions/upload-artifact@v7
+        with:
+          name: MobileGLX-plugin-${{ env.date_today }}-${{ env.release_tag }}
+          path: android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${{ env.release_tag }}.apk
+          archive: false
+          if-no-files-found: error
+
+      - name: Publish GitHub Release
+        if: startsWith(github.ref, 'refs/tags/')
+        uses: softprops/action-gh-release@v2
+        with:
+          files: android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${{ env.release_tag }}.apk
+          generate_release_notes: true
+          body: |
+            MobileGLX — Minecraft Java 26.3 (vanilla + Fabric) odaklı renderer plugin.
+
+            - Destek: Minecraft Java 26.3 vanilla + Fabric 26.3 (Loader 0.19.5, Fabric API 0.161.0+26.3, Java 25)
+            - Önerilen backend: DirectGLES (varsayılan). Alternatif: DirectVulkan
+            - Kurulum: APK'yı kurun, launcher'da (FCL / Pojav / Zalith) renderer olarak MobileGLX / opengles3 seçin.
+            - Detaylar: README_MobileGLX.md

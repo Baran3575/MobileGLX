@@ -37,6 +37,9 @@
             android:name="mobilegl_coherent_as_flush_title"
             tools:node="remove" />
         <meta-data
+            android:name="mobilegl_relaxed_semantics_title"
+            tools:node="remove" />
+        <meta-data
             android:name="mobilegl_use_angle_title"
             tools:node="remove" />
         <meta-data
@@ -57,7 +60,7 @@
             android:exported="true"
             android:theme="@style/Theme.MobileGLPlugin">
             <intent-filter>
-                <action android:name="top.mobilegl.plugin.TRACE_REPLAY" />
+                <action android:name="top.mobileglx.plugin.TRACE_REPLAY" />
                 <category android:name="android.intent.category.DEFAULT" />
             </intent-filter>
         </activity>

@@ -33,7 +33,7 @@ If that source is missing, run `rdc android setup` first. Verify injection with:
 
 ```powershell
 adb -s SERIAL shell getprop debug.gles.layers
-adb -s SERIAL shell run-as top.mobilegl.plugin.trace ls -l /data/user/0/top.mobilegl.plugin.trace/libVkLayer_GLES_RenderDoc.so
+adb -s SERIAL shell run-as top.mobileglx.plugin.trace ls -l /data/user/0/top.mobileglx.plugin.trace/libVkLayer_GLES_RenderDoc.so
 ```
 
 ## Android debug settings
@@ -41,7 +41,7 @@ adb -s SERIAL shell run-as top.mobilegl.plugin.trace ls -l /data/user/0/top.mobi
 Require these global settings for the replay package:
 
 ```text
-gpu_debug_app=top.mobilegl.plugin.trace
+gpu_debug_app=top.mobileglx.plugin.trace
 enable_gpu_debug_layers=1
 gpu_debug_layers=VK_LAYER_RENDERDOC_Capture
 ```

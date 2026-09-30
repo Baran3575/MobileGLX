@@ -1,4 +1,4 @@
-package top.mobilegl.plugin;
+package top.mobileglx.plugin;
 
 import android.app.Service;
 import android.content.Intent;
@@ -17,9 +17,9 @@ import android.util.Log;
  * one.
  */
 public final class BenchService extends Service {
-    private static final String TAG = "MobileGLBench";
+    private static final String TAG = "MobileGLXBench";
 
-    public static final String ACTION_RESULT = "top.mobilegl.plugin.BENCH_RESULT";
+    public static final String ACTION_RESULT = "top.mobileglx.plugin.BENCH_RESULT";
     public static final String EXTRA_BACKEND = "backend";
     public static final String EXTRA_RESULT_JSON = "resultJson";
     public static final String EXTRA_FRAMES = "frames";
@@ -70,7 +70,7 @@ public final class BenchService extends Service {
             }
             stopSelf();
             System.exit(0);
-        }, "MobileGLDriverBench").start();
+        }, "MobileGLXDriverBench").start();
 
         return START_NOT_STICKY;
     }

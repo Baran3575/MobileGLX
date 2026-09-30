@@ -237,7 +237,7 @@ tar -xzf tools/trace_replay/fixtures/openra.tgz -C /tmp/mobilegl-openra
 adb push /tmp/mobilegl-openra/openra.trace /data/local/tmp/mobilegl-openra.trace
 adb push tools/trace_replay/fixtures/openra.0000031249.png /data/local/tmp/mobilegl-openra.golden.png
 
-PKG=top.mobilegl.plugin.trace
+PKG=top.mobileglx.plugin.trace
 APP_DIR=/data/user/0/$PKG/files/trace-replay
 adb shell run-as $PKG rm -rf files/trace-replay
 adb shell run-as $PKG mkdir -p files/trace-replay/input files/trace-replay/output
@@ -249,8 +249,8 @@ Launch the standalone trace runner Activity:
 
 ```sh
 adb shell am force-stop $PKG
-adb shell am start -W -a top.mobilegl.plugin.TRACE_REPLAY \
-  -n $PKG/top.mobilegl.plugin.trace.TraceReplayActivity \
+adb shell am start -W -a top.mobileglx.plugin.TRACE_REPLAY \
+  -n $PKG/top.mobileglx.plugin.trace.TraceReplayActivity \
   --es trace_path $APP_DIR/input/openra.trace \
   --es golden_path $APP_DIR/input/openra.golden.png \
   --es output_dir $APP_DIR/output \
@@ -323,8 +323,8 @@ result as `benchmark-run<N>.json`.
 The Activity takes the same settings directly:
 
 ```sh
-adb shell am start -a top.mobilegl.plugin.TRACE_REPLAY \
-  -n $PKG/top.mobilegl.plugin.trace.TraceReplayActivity \
+adb shell am start -a top.mobileglx.plugin.TRACE_REPLAY \
+  -n $PKG/top.mobileglx.plugin.trace.TraceReplayActivity \
   --es trace_path $APP_DIR/input/openra.trace \
   --es output_dir $APP_DIR/output \
   --es backend DirectGLES \

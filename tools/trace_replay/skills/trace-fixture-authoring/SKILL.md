@@ -477,14 +477,14 @@ gradle --no-daemon -p "$REPO/android-plugin" \
 
 TRACE_APK=$(find "$REPO/android-plugin/app/build/outputs/apk/trace/release" \
   -maxdepth 1 -name 'MobileGL-plugin-trace-release-*.apk' -print -quit)
-TRACE_PACKAGE=top.mobilegl.plugin.trace
+TRACE_PACKAGE=top.mobileglx.plugin.trace
 ```
 
 Release APKs are only signed when `SIGNING_STORE_PASSWORD`,
 `SIGNING_KEY_ALIAS`, and `SIGNING_KEY_PASSWORD` are set and
 `android-plugin/keystore.jks` exists - an unsigned build still "succeeds" but
 installs fail later with `INSTALL_PARSE_FAILED_NO_CERTIFICATES`. If the device
-or emulator already has `top.mobilegl.plugin.trace` from a different keystore,
+or emulator already has `top.mobileglx.plugin.trace` from a different keystore,
 uninstall that one package first or the install fails with
 `INSTALL_FAILED_UPDATE_INCOMPATIBLE`.
 

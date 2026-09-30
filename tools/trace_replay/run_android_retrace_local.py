@@ -22,12 +22,12 @@ TRACE_APK_DIR = ROOT / "android-plugin" / "app" / "build" / "outputs" / "apk" / 
 
 BACKENDS = {
     "DirectGLES": {
-        "package": "top.mobilegl.plugin.trace",
+        "package": "top.mobileglx.plugin.trace",
         "use_angle": False,
         "use_pbuffer": False,
     },
     "DirectVulkan": {
-        "package": "top.mobilegl.plugin.trace",
+        "package": "top.mobileglx.plugin.trace",
         "use_angle": False,
         "use_pbuffer": False,
     },

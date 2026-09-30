@@ -1,11 +1,17 @@
-name: MobileGL APK
+name: MobileGLX APK
 
 on:
   push:
     branches:
       - dev
+      - main
+      - mc26.3
+      - mc26.3-minecraft
       - Feat/Backend-Direct-GLES
       - Feat/Backend-Direct-Vulkan
+    tags:
+      - 'v*'
+      - 'mc26.3*'
   workflow_dispatch:
 
 jobs:
@@ -152,8 +158,8 @@ jobs:
       - name: Verify APK metadata and packaging
         run: |
           AAPT2="$(find "$ANDROID_HOME/build-tools" -name aapt2 -type f | sort -V | tail -n 1)"
-          plugin_apk="android-plugin/app/build/outputs/apk/plugin/release/MobileGL-plugin-release-${GITHUB_SHA}.apk"
-          trace_apk="android-plugin/app/build/outputs/apk/trace/release/MobileGL-plugin-trace-release-${GITHUB_SHA}.apk"
+          plugin_apk="android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${GITHUB_SHA}.apk"
+          trace_apk="android-plugin/app/build/outputs/apk/trace/release/MobileGLX-plugin-trace-release-${GITHUB_SHA}.apk"
           test -f "${plugin_apk}"
           test -f "${trace_apk}"
           bash .github/scripts/validate-plugin-apks.sh "$AAPT2" "$plugin_apk" "$trace_apk"
@@ -162,8 +168,8 @@ jobs:
         run: |
           APKSIGNER="$(find "$ANDROID_HOME/build-tools" -name apksigner -type f | sort -V | tail -n 1)"
           mapfile -t APKS < <(printf '%s\n' \
-            "android-plugin/app/build/outputs/apk/plugin/release/MobileGL-plugin-release-${GITHUB_SHA}.apk" \
-            "android-plugin/app/build/outputs/apk/trace/release/MobileGL-plugin-trace-release-${GITHUB_SHA}.apk")
+            "android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${GITHUB_SHA}.apk" \
+            "android-plugin/app/build/outputs/apk/trace/release/MobileGLX-plugin-trace-release-${GITHUB_SHA}.apk")
           for APK in "${APKS[@]}"; do
             if [[ ! -f "$APK" ]]; then
               echo "::error::Expected release APK was not produced: $APK"
@@ -182,16 +188,16 @@ jobs:
       - name: Upload plugin APK
         uses: actions/upload-artifact@v7
         with:
-          name: MobileGL-plugin-${{ env.date_today }}-${{ github.sha }}
-          path: android-plugin/app/build/outputs/apk/plugin/release/MobileGL-plugin-release-${{ github.sha }}.apk
+          name: MobileGLX-plugin-${{ env.date_today }}-${{ github.sha }}
+          path: android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${{ github.sha }}.apk
           archive: false
           if-no-files-found: error
 
       - name: Upload retrace APK
         uses: actions/upload-artifact@v7
         with:
-          name: MobileGL-retrace-apk-${{ env.date_today }}-${{ github.sha }}
-          path: android-plugin/app/build/outputs/apk/trace/release/MobileGL-plugin-trace-release-${{ github.sha }}.apk
+          name: MobileGLX-retrace-apk-${{ env.date_today }}-${{ github.sha }}
+          path: android-plugin/app/build/outputs/apk/trace/release/MobileGLX-plugin-trace-release-${{ github.sha }}.apk
           archive: false
           if-no-files-found: error
 
@@ -273,7 +279,7 @@ jobs:
       - name: Upload trace fixture
         uses: actions/upload-artifact@v7
         with:
-          name: MobileGL-trace-fixture-${{ matrix.case }}
+          name: MobileGLX-trace-fixture-${{ matrix.case }}
           path: trace-fixtures/**
           if-no-files-found: error
 
@@ -350,7 +356,7 @@ jobs:
       - name: Download trace fixture
         uses: actions/download-artifact@v8
         with:
-          name: MobileGL-trace-fixture-${{ matrix.case.name }}
+          name: MobileGLX-trace-fixture-${{ matrix.case.name }}
           path: trace-fixture-download
 
       - name: Install trace fixture
@@ -387,7 +393,7 @@ jobs:
       - name: Download retrace APK
         uses: actions/download-artifact@v8
         with:
-          name: MobileGL-plugin-trace-release-${{ github.sha }}.apk
+          pattern: MobileGLX-retrace-apk-*
           path: android-retrace-apks
 
       - name: Enable KVM
@@ -424,7 +430,7 @@ jobs:
           MOBILEGL_MAGMA_DERIVE_NUM_SUBGROUPS: ${{ matrix.backend.name == 'DirectVulkan' && matrix.case.name == 'minecraft-1.21.4-fabric-iris-iterationrp-in-world' && '1' || '0' }}
           MOBILEGL_MAGMA_ITERATIONRP_FIX_BARRIER: ${{ matrix.backend.name == 'DirectVulkan' && matrix.case.name == 'minecraft-1.21.4-fabric-iris-iterationrp-in-world' && '1' || '0' }}
         run: |
-          apk_file="android-retrace-apks/MobileGL-plugin-trace-release-${GITHUB_SHA}.apk"
+          apk_file="android-retrace-apks/MobileGLX-plugin-trace-release-${GITHUB_SHA}.apk"
           test -f "${apk_file}"
           extra_retrace_args=()
           # Bliss needs the newer signed ANGLE variant plus sampler mipmap
@@ -442,7 +448,7 @@ jobs:
           run_retrace() {
             timeout "$(( ${{ matrix.case.timeout_seconds }} + 300 ))" sh android-plugin/trace-replay-ci.sh \
               --apk-file "${apk_file}" \
-              --package top.mobilegl.plugin.trace \
+              --package top.mobileglx.plugin.trace \
               --backend "${{ matrix.backend.name }}" \
               --result-root android-retrace-result \
               --fixture-root android-retrace-fixture \
@@ -544,7 +550,7 @@ jobs:
         if: always()
         uses: actions/upload-artifact@v7
         with:
-          name: MobileGL-android-retrace-result-${{ env.date_today }}-${{ github.sha }}-${{ matrix.backend.name }}-${{ matrix.case.name }}
+          name: MobileGLX-android-retrace-result-${{ env.date_today }}-${{ github.sha }}-${{ matrix.backend.name }}-${{ matrix.case.name }}
           path: android-retrace-result/**
           if-no-files-found: warn
 
@@ -570,7 +576,7 @@ jobs:
       - name: Download Android retrace results
         uses: actions/download-artifact@v8
         with:
-          pattern: MobileGL-android-retrace-result-*
+          pattern: MobileGLX-android-retrace-result-*
           path: retrace-artifacts
 
       - name: Render retrace summary
@@ -578,7 +584,7 @@ jobs:
           node tools/trace_replay/render_retrace_summary.mjs \
             --input retrace-artifacts \
             --output-dir android-retrace-summary \
-            --title "MobileGL Android retrace overview" \
+            --title "MobileGLX Android retrace overview" \
             --group-label "Android Emulator" \
             --html mobilegl-android-retrace-overview.html
 
@@ -622,12 +628,12 @@ jobs:
           retained=0
           while IFS=$'\t' read -r artifact_id artifact_name; do
             keep=0
-            if [[ "${artifact_name}" == MobileGL-trace-fixture-* ]]; then
-              case_name="${artifact_name#MobileGL-trace-fixture-}"
+            if [[ "${artifact_name}" == MobileGLX-trace-fixture-* ]]; then
+              case_name="${artifact_name#MobileGLX-trace-fixture-}"
               if [[ -v "failed_cases[${case_name}]" ]]; then
                 keep=1
               fi
-            elif [[ "${artifact_name}" == MobileGL-android-retrace-result-* ]]; then
+            elif [[ "${artifact_name}" == MobileGLX-android-retrace-result-* ]]; then
               # The result artifact carries mobilegl.log, retrace.log, logcat,
               # the emulator log and the actual/diff images - the only record of
               # why a retrace failed. Its name ends in -<backend>-<case>, so a
@@ -654,7 +660,7 @@ jobs:
             ((deleted += 1))
           done < <(
             gh api --paginate "repos/${GITHUB_REPOSITORY}/actions/runs/${GITHUB_RUN_ID}/artifacts?per_page=100" \
-              --jq '.artifacts[] | select(.name | startswith("MobileGL-trace-fixture-") or startswith("MobileGL-android-retrace-result-") or startswith("trace-fixture-") or startswith("retrace-result-")) | [.id, .name] | @tsv'
+              --jq '.artifacts[] | select(.name | startswith("MobileGLX-trace-fixture-") or startswith("MobileGLX-android-retrace-result-") or startswith("trace-fixture-") or startswith("retrace-result-")) | [.id, .name] | @tsv'
           )
 
           echo "Deleted ${deleted} intermediate Android artifact(s); retained ${retained} failed-retrace fixture(s)."

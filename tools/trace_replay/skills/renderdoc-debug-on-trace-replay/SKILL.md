@@ -15,7 +15,7 @@ Use the repository tool to queue TargetControl before launching the replay activ
 
 ```powershell
 adb devices -l
-adb -s SERIAL shell pm path top.mobilegl.plugin.trace
+adb -s SERIAL shell pm path top.mobileglx.plugin.trace
 rdc doctor
 ```
 

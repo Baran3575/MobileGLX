@@ -1,4 +1,4 @@
-package top.mobilegl.plugin;
+package top.mobileglx.plugin;
 
 import android.app.Activity;
 import android.content.BroadcastReceiver;
@@ -29,7 +29,7 @@ import java.lang.ref.WeakReference;
 import java.util.Locale;
 
 public final class PostActivity extends Activity {
-    private static final String TAG = "MobileGLPost";
+    private static final String TAG = "MobileGLXPost";
 
     private static final int COLOR_BACKGROUND = 0xFF121212;
     private static final int COLOR_TEXT = 0xFFEEEEEE;
@@ -95,7 +95,7 @@ public final class PostActivity extends Activity {
         scrollView.addView(contentLayout);
         setContentView(scrollView);
 
-        addText("MobileGL Driver POST", 20, COLOR_TEXT, true, 0);
+        addText("MobileGLX Driver POST", 20, COLOR_TEXT, true, 0);
         statusView = addText("Running self-test...", 14, COLOR_INFO, false, dp(8));
 
         boolean startWorker = false;
@@ -116,7 +116,7 @@ public final class PostActivity extends Activity {
             return;
         }
         if (startWorker) {
-            new Thread(PostActivity::runDriverPost, "MobileGLDriverPost").start();
+            new Thread(PostActivity::runDriverPost, "MobileGLXDriverPost").start();
         }
     }
 

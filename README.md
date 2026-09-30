@@ -1,4 +1,15 @@
-<h1 align="center">MobileGL</h1>
+<h1 align="center">MobileGLX</h1>
+
+> [!NOTE]
+> **MobileGLX**, [MobileGL-Dev/MobileGL](https://github.com/MobileGL-Dev/MobileGL)'in
+> **Minecraft: Java Edition odaklı fork'udur** (şu an: **Minecraft 26.3 vanilla + Fabric 26.3**).
+> Kurulum, destek matrisi ve Release build'leri için **[README_MobileGLX.md](README_MobileGLX.md)**
+> dosyasına bakın. Aşağıdaki doküman upstream çekirdeği anlatır.
+>
+> Fork sebebi: MobileGlues daha seyrek güncellenirken MobileGL daha sık güncelleniyor;
+> MobileGLX güncel MobileGL çekirdeğini Minecraft varsayılanlarıyla paketler.
+
+<h1 align="center">MobileGL (upstream)</h1>
 
 <p align="center">
   <img src="https://img.shields.io/badge/Language-C%2B%2B-00599c?style=flat&logo=c%2B%2B" alt="C++">
