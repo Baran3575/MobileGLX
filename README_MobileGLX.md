@@ -48,6 +48,31 @@ varsayılanları, paket kimliğini ve build altyapısını Minecraft'a göre aya
 Öneri: önce `DirectGLES` ile deneyin; sorun yaşarsanız launcher ayarlarından
 `DirectVulkan` backend'ine geçin.
 
+## Optimizasyonlar (MobileGLX, Java/Minecraft'a özel)
+
+MobileGlues felsefesi (Minecraft'a özel varsayılanlar + kalıcı shader önbelleği),
+MobileGL çekirdeği üzerinde:
+
+- **Vulkan pipeline cache persist** (`MOBILEGL_MAGMA_PIPELINE_CACHE_DIR`):
+  driver pipeline derlemesi (`vkCreateGraphicsPipelines`) dünya yükleme ve Iris
+  shaderpack reload'daki ana takılmadır. İlk açılışta derlenen her şey paket-scope
+  dosyaya yazılır (`magma_pipeline_<uuid>_<cachever>.bin`, header'da magic +
+  CacheVersion + driver sürümü + cihaz UUID; 64 MiB cap). İkinci açılışta
+  görülmüş pipeline'lar atlanır. Boş değer = otomatik: Android'de host uygulamanın
+  cache dizini (`/proc/self/cmdline` → paket → `.../cache/mobileglx`, probe-write
+  ile doğrulanır), diğer platformlarda memory-only. `0`/`off` = kapalı.
+  Bozuk/uyumsuz blob ölümcül değildir: header doğrulanır, driver reddederse boş
+  cache ile devam edilir.
+- **Async shader derleme ayarları** (launcher UI'dan):
+  `MOBILEGL_ASYNC_SHADER_COMPILE_THREADS` (`0` = otomatik, `min(4, big core)`) ve
+  `MOBILEGL_ASYNC_OPTIMISTIC_SHADER_STATUS` (Iris'in program-sorgusuz yüzlerce
+  shader derleyen gbuffer fazı için; link join'i her zaman doğru kalır).
+- **Zaten çekirdekte var, Minecraft için açık gelenler**: `glUniform` bytes-equal
+  dedupe (her frame aynı matris/sampler tekrarını backend'e iletmez),
+  sampler/image unit dedupe, redundant state filtreleme (frontend equality
+  early-out + backend shadow `memcmp`), async compile pool + adoption map
+  (shaderpack burst tekrarları tek job'a iner).
+
 ## Build'ler (GitHub Actions)
 
 | Workflow | Tetikleyici | Çıktı |

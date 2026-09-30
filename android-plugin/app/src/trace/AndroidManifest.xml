@@ -40,6 +40,15 @@
             android:name="mobilegl_relaxed_semantics_title"
             tools:node="remove" />
         <meta-data
+            android:name="mobileglx_pipeline_cache_dir_title"
+            tools:node="remove" />
+        <meta-data
+            android:name="mobileglx_async_threads_title"
+            tools:node="remove" />
+        <meta-data
+            android:name="mobileglx_optimistic_status_title"
+            tools:node="remove" />
+        <meta-data
             android:name="mobilegl_use_angle_title"
             tools:node="remove" />
         <meta-data

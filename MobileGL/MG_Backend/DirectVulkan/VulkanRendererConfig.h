@@ -26,6 +26,13 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         // VulkanRenderer::SetSwapInterval.
         Optional<Int> SwapInterval;
         Bool DisablePipelineCache = false;
+        // Disk persistence for the VkPipelineCache (MOBILEGL_MAGMA_PIPELINE_CACHE_DIR).
+        // Empty = auto-resolve (Android host-app cache dir, memory-only elsewhere);
+        // "0"/"off" disables even the auto path. A 32-char lowercase hex device UUID
+        // scopes the file name so a blob can never cross drivers.
+        String PipelineCacheDir;
+        String PipelineCacheUUIDHex;
+        Uint32 PipelineCacheDriverVersion = 0;
 #if MOBILEGL_LOG_ACTIVE_LEVEL <= MOBILEGL_LOG_LEVEL_DEBUG
         Bool EnableValidationLayers = true;
 #else

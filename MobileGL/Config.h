@@ -144,6 +144,13 @@ namespace MobileGL::MG_Config {
         // frame otherwise keeps its burst of sets (rd12: ~15k, where steady frames use a few dozen)
         // for the life of the process. See UniformManager::TrimFrameDescriptorPools.
         Uint32 MagmaDescriptorTrimFrames = 120;
+        // MOBILEGL_MAGMA_PIPELINE_CACHE_DIR: directory Magma persists its VkPipelineCache blob
+        // to (file name derived from the device UUID + CacheVersion). Empty (default) means
+        // "auto": on Android the host app's cache dir is resolved from /proc/self/cmdline, so
+        // Minecraft restarts and shaderpack reloads skip vkCreateGraphicsPipelines for every
+        // already-seen pipeline; elsewhere the cache stays memory-only. "0"/"off" disables even
+        // the Android auto path. See PipelineFactory::ResolvePipelineCachePath.
+        String MagmaPipelineCacheDir;
         // MOBILEGL_ESPRYT_AVOID_SAMPLER_MIPMAP_MIN_FILTER: avoid mipmap min filters in samplers,
         // resolves certain rendering bugs on ANGLE + llvmpipe.
         Bool EsprytAvoidSamplerMipmapMinFilter = false;

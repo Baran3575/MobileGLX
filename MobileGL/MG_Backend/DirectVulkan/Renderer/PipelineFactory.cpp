@@ -9,6 +9,13 @@
 #include "PipelineFactory.h"
 
 #include <algorithm>
+#include <cctype>
+#include <cstdio>
+#include <cstring>
+#include <filesystem>
+#if defined(__ANDROID__)
+#include <unistd.h>
+#endif
 
 namespace MobileGL::MG_Backend::DirectVulkan {
     static const char* PrimitiveTopologyToString(VkPrimitiveTopology topology) {
@@ -96,6 +103,145 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         }
     }
 
+    namespace {
+        // Disk-backed VkPipelineCache (MobileGLX, Minecraft 26.3): a driver pipeline compile
+        // (vkCreateGraphicsPipelines) is the dominant hitch on world load and on every Iris
+        // shaderpack reload, and the in-memory cache dies with the process. Persisting the
+        // driver blob makes the second launch skip every already-seen pipeline. Format is
+        // versioned by the trailing magic digit; CacheVersion + driver version + device UUID
+        // in the header (and UUID in the file name) make stale blobs unloadable by
+        // construction. Every failure degrades to memory-only - never fatal.
+        constexpr char kPipelineCacheMagic[8] = {'M', 'G', 'L', 'X', 'P', 'C', '0', '1'};
+        constexpr Uint64 kPipelineCacheFileMaxBytes = 64ull << 20;
+
+        struct PipelineCacheFileHeader {
+            char magic[8];
+            Uint64 cacheVersion;
+            Uint32 driverVersion;
+            char uuidHex[32];
+            Uint64 dataSize;
+        };
+
+        Bool IsPipelineCacheOffValue(const String& value) {
+            if (value.empty()) return false;
+            String lowered = value;
+            std::transform(lowered.begin(), lowered.end(), lowered.begin(),
+                           [](unsigned char c) { return static_cast<char>(std::tolower(c)); });
+            return lowered == "0" || lowered == "off" || lowered == "false";
+        }
+
+#if defined(__ANDROID__)
+        String ReadProcessPackageName() {
+            std::FILE* file = std::fopen("/proc/self/cmdline", "rb");
+            if (file == nullptr) return {};
+            char buffer[512];
+            const SizeT read = std::fread(buffer, 1, sizeof(buffer) - 1, file);
+            std::fclose(file);
+            if (read == 0) return {};
+            buffer[read] = '\0';
+            // cmdline is NUL-separated; the first entry is the package (or "pkg:process").
+            String package(buffer);
+            const SizeT colon = package.find(':');
+            if (colon != String::npos) package.resize(colon);
+            // Sanity: a package name always has a dot and never a slash.
+            if (package.find('.') == String::npos || package.find('/') != String::npos) return {};
+            return package;
+        }
+
+        // The plugin .so runs inside the launcher process with the host UID, so the host
+        // app's cache dir is writable without any storage permission. Probe-write decides:
+        // a dir that cannot take a file is skipped silently.
+        String ResolveAndroidPipelineCacheDir() {
+            const String package = ReadProcessPackageName();
+            if (package.empty()) return {};
+            const unsigned userId = static_cast<unsigned>(::getuid() / 100000);
+            const String candidates[2] = {
+                "/data/user/" + std::to_string(userId) + "/" + package + "/cache/mobileglx",
+                "/data/data/" + package + "/cache/mobileglx",
+            };
+            for (const String& dir : candidates) {
+                std::error_code ec;
+                std::filesystem::create_directories(dir, ec);
+                if (ec) continue;
+                const String probe = dir + "/.probe";
+                std::FILE* file = std::fopen(probe.c_str(), "wb");
+                if (file == nullptr) continue;
+                std::fputc(0, file);
+                std::fclose(file);
+                std::filesystem::remove(probe, ec);
+                return dir;
+            }
+            return {};
+        }
+#endif
+
+        String ResolvePipelineCacheDir(const String& configured) {
+            if (IsPipelineCacheOffValue(configured)) return {};
+            if (!configured.empty()) {
+                std::error_code ec;
+                std::filesystem::create_directories(configured, ec);
+                if (ec) {
+                    MGLOG_W("DirectVulkan: pipeline cache dir '%s' not usable (%s); cache stays memory-only",
+                            configured.c_str(), ec.message().c_str());
+                    return {};
+                }
+                return configured;
+            }
+#if defined(__ANDROID__)
+            return ResolveAndroidPipelineCacheDir();
+#else
+            return {};
+#endif
+        }
+
+        String PipelineCacheFilePath(const String& dir, const String& uuidHex, Uint64 cacheVersion) {
+            if (dir.empty() || uuidHex.size() != 32) return {};
+            return dir + "/magma_pipeline_" + uuidHex + "_" + std::to_string(cacheVersion) + ".bin";
+        }
+
+        Bool LoadPipelineCacheBlob(const String& path, const String& uuidHex, Uint64 cacheVersion,
+                                   Uint32 driverVersion, Vector<Uint8>& outData) {
+            std::FILE* file = std::fopen(path.c_str(), "rb");
+            if (file == nullptr) return false;
+            PipelineCacheFileHeader header{};
+            Bool ok = std::fread(&header, 1, sizeof(header), file) == sizeof(header) &&
+                      std::memcmp(header.magic, kPipelineCacheMagic, sizeof(header.magic)) == 0 &&
+                      header.cacheVersion == cacheVersion && header.driverVersion == driverVersion &&
+                      std::memcmp(header.uuidHex, uuidHex.data(), sizeof(header.uuidHex)) == 0 &&
+                      header.dataSize > 0 && header.dataSize <= kPipelineCacheFileMaxBytes;
+            if (ok) {
+                outData.resize(static_cast<SizeT>(header.dataSize));
+                ok = std::fread(outData.data(), 1, outData.size(), file) == outData.size();
+            }
+            std::fclose(file);
+            return ok;
+        }
+
+        void SavePipelineCacheBlob(const String& path, const String& uuidHex, Uint64 cacheVersion,
+                                   Uint32 driverVersion, const Uint8* data, SizeT dataSize) {
+            if (data == nullptr || dataSize == 0 || dataSize > kPipelineCacheFileMaxBytes) return;
+            std::FILE* file = std::fopen(path.c_str(), "wb");
+            if (file == nullptr) {
+                MGLOG_W("DirectVulkan: cannot write pipeline cache '%s'; skipping persist", path.c_str());
+                return;
+            }
+            PipelineCacheFileHeader header{};
+            std::memcpy(header.magic, kPipelineCacheMagic, sizeof(header.magic));
+            header.cacheVersion = cacheVersion;
+            header.driverVersion = driverVersion;
+            std::memcpy(header.uuidHex, uuidHex.data(), sizeof(header.uuidHex));
+            header.dataSize = static_cast<Uint64>(dataSize);
+            const Bool ok = std::fwrite(&header, 1, sizeof(header), file) == sizeof(header) &&
+                            std::fwrite(data, 1, dataSize, file) == dataSize;
+            std::fclose(file);
+            if (ok) {
+                MGLOG_I("DirectVulkan: persisted %zu pipeline cache bytes to '%s'", dataSize, path.c_str());
+            } else {
+                MGLOG_W("DirectVulkan: short write on pipeline cache '%s'; blob discarded", path.c_str());
+            }
+        }
+    } // namespace
+
     PipelineFactory::PipelineFactory(VkDevice device, const VulkanRendererConfig& config):
         m_device(device), m_config(config) {
         MOBILEGL_ASSERT(m_device != VK_NULL_HANDLE, "PipelineFactory: device is null");
@@ -106,8 +252,34 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         }
 
         VkPipelineCacheCreateInfo pipelineCacheInfo{VK_STRUCTURE_TYPE_PIPELINE_CACHE_CREATE_INFO};
-        VK_VERIFY(vkCreatePipelineCache(m_device, &pipelineCacheInfo, nullptr, &m_pipelineCache),
-                  "vkCreatePipelineCache");
+        Vector<Uint8> initialData;
+        m_pipelineCachePath = PipelineCacheFilePath(ResolvePipelineCacheDir(m_config.PipelineCacheDir),
+                                                    m_config.PipelineCacheUUIDHex, m_config.CacheVersion);
+        Bool haveInitialData = false;
+        if (!m_pipelineCachePath.empty()) {
+            m_pipelineCacheUUIDHex = m_config.PipelineCacheUUIDHex;
+            m_pipelineCacheDriverVersion = m_config.PipelineCacheDriverVersion;
+            haveInitialData = LoadPipelineCacheBlob(m_pipelineCachePath, m_pipelineCacheUUIDHex,
+                                                    m_config.CacheVersion, m_pipelineCacheDriverVersion,
+                                                    initialData);
+            if (haveInitialData) {
+                pipelineCacheInfo.initialDataSize = initialData.size();
+                pipelineCacheInfo.pInitialData = initialData.data();
+            }
+        }
+        // initialData is driver-opaque: a blob the driver rejects must degrade to an empty
+        // cache, never abort. The result is therefore checked directly (never VK_VERIFY,
+        // which is fatal) with an empty-cache retry.
+        if (vkCreatePipelineCache(m_device, &pipelineCacheInfo, nullptr, &m_pipelineCache) != VK_SUCCESS) {
+            MGLOG_W("DirectVulkan: pipeline cache blob rejected by driver; recreating empty");
+            pipelineCacheInfo.initialDataSize = 0;
+            pipelineCacheInfo.pInitialData = nullptr;
+            VK_VERIFY(vkCreatePipelineCache(m_device, &pipelineCacheInfo, nullptr, &m_pipelineCache),
+                      "vkCreatePipelineCache");
+        } else if (haveInitialData) {
+            MGLOG_I("DirectVulkan: loaded pipeline cache from '%s' (%zu bytes)", m_pipelineCachePath.c_str(),
+                    initialData.size());
+        }
     }
 
     // Must be called once, before any pipeline is created: the flag is not part of the
@@ -186,6 +358,9 @@ namespace MobileGL::MG_Backend::DirectVulkan {
     }
 
     PipelineFactory::~PipelineFactory() {
+        // Persist before destroying pipelines: vkGetPipelineCacheData is valid any time the
+        // cache object is alive, and DestroyAll() below only drops our VkPipeline handles.
+        PersistPipelineCacheToDisk();
         DestroyAll();
         if (m_pipelineCache != VK_NULL_HANDLE) {
             vkDestroyPipelineCache(m_device, m_pipelineCache, nullptr);
@@ -277,7 +452,31 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         }
         m_cache.emplace(hash, PipelineCacheEntry{pipeline, payload.programHash, payload.renderPass,
                                                  m_frameCounter});
+        ++m_pipelinesCreatedSincePersist;
         return pipeline;
+    }
+
+    // Disk persist of the driver blob. Called from the destructor (clean teardown) and
+    // periodically from OnFrameBoundary: a game process is usually killed rather than torn
+    // down, so the destructor alone would rarely run. Every failure is silent by design -
+    // the cache is purely an optimization.
+    void PipelineFactory::PersistPipelineCacheToDisk() {
+        m_lastPersistFrame = m_frameCounter;
+        m_pipelinesCreatedSincePersist = 0;
+        if (m_pipelineCache == VK_NULL_HANDLE || m_pipelineCachePath.empty()) return;
+        SizeT dataSize = 0;
+        if (vkGetPipelineCacheData(m_device, m_pipelineCache, &dataSize, nullptr) != VK_SUCCESS ||
+            dataSize == 0 || dataSize > kPipelineCacheFileMaxBytes) {
+            return;
+        }
+        Vector<Uint8> data(dataSize);
+        SizeT actualSize = dataSize;
+        if (vkGetPipelineCacheData(m_device, m_pipelineCache, &actualSize, data.data()) != VK_SUCCESS ||
+            actualSize > dataSize) {
+            return;
+        }
+        SavePipelineCacheBlob(m_pipelineCachePath, m_pipelineCacheUUIDHex, m_config.CacheVersion,
+                              m_pipelineCacheDriverVersion, data.data(), actualSize);
     }
 
     void PipelineFactory::DestroyAll() {
@@ -291,6 +490,16 @@ namespace MobileGL::MG_Backend::DirectVulkan {
 
     Uint32 PipelineFactory::OnFrameBoundary() {
         ++m_frameCounter;
+
+        // Periodic disk persist (MobileGLX): flush at most every 1800 frame boundaries
+        // (~30 s at 60 fps) and only when new pipelines actually landed since the last
+        // flush, bounding the vkGetPipelineCacheData stall to moments of real progress.
+        constexpr Uint64 kPersistIntervalFrames = 1800;
+        constexpr Uint32 kPersistMinNewPipelines = 25;
+        if (!m_pipelineCachePath.empty() && m_pipelinesCreatedSincePersist >= kPersistMinNewPipelines &&
+            m_frameCounter - m_lastPersistFrame >= kPersistIntervalFrames) {
+            PersistPipelineCacheToDisk();
+        }
 
         // Sweep cadence and retire age mirror VkRenderPassManager::OnPresent: an entry
         // idle for more than kRetireAgeFrames frame boundaries cannot be referenced by

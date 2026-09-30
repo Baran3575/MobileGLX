@@ -104,6 +104,12 @@ val pluginRendererConfig = buildJsonValue {
             toggleable("MOBILEGL_COHERENT_AS_FLUSH", "1", true, RendererConfig.MetaString("mobilegl_coherent_as_flush_title"))
             toggleable("MOBILEGL_RELAXED_SEMANTICS", "1", true, RendererConfig.MetaString("mobilegl_relaxed_semantics_title"))
             toggleable("MOBILEGL_ESPRYT_USE_ANGLE", "1", false, RendererConfig.MetaString("mobilegl_use_angle_title"))
+            // MobileGLX Java optimizasyonları:
+            // - pipeline cache dir: boş = otomatik (Android'de host app cache dir), kapalı için 0/off
+            // - shader thread: 0 = otomatik (min(4, big core))
+            customizable("MOBILEGL_MAGMA_PIPELINE_CACHE_DIR", "", RendererConfig.MetaString("mobileglx_pipeline_cache_dir_title"))
+            customizable("MOBILEGL_ASYNC_SHADER_COMPILE_THREADS", "0", RendererConfig.MetaString("mobileglx_async_threads_title"))
+            toggleable("MOBILEGL_ASYNC_OPTIMISTIC_SHADER_STATUS", "1", false, RendererConfig.MetaString("mobileglx_optimistic_status_title"))
         },
         minMCVer = mobileGlxMcVersion,
         maxMCVer = mobileGlxMcVersion,

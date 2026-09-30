@@ -180,6 +180,7 @@ namespace MobileGL::MG_ConfigLoader {
         features.MagmaMaxDrawsPerCommandBuffer =
             QueryEnvUint32("MOBILEGL_MAGMA_MAX_DRAWS_PER_COMMAND_BUFFER", 16384, 0, 1u << 24);
         features.MagmaDescriptorTrimFrames = QueryEnvUint32("MOBILEGL_MAGMA_DESCRIPTOR_TRIM_FRAMES", 120, 0, 1u << 20);
+        QueryEnvVariable("MOBILEGL_MAGMA_PIPELINE_CACHE_DIR", features.MagmaPipelineCacheDir, "");
         features.EsprytAvoidSamplerMipmapMinFilter =
             QueryEnvFlag("MOBILEGL_ESPRYT_AVOID_SAMPLER_MIPMAP_MIN_FILTER");
         features.EsprytAvoidExplicitLodBias = QueryEnvFlag("MOBILEGL_ESPRYT_AVOID_EXPLICIT_LOD_BIAS");

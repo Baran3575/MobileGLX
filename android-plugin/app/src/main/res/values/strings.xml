@@ -10,5 +10,8 @@
     <string name="mobilegl_coherent_as_flush_title">Treat explicit-flush persistent maps as coherent</string>
     <string name="mobilegl_use_angle_title">Use ANGLE GLES libraries</string>
     <string name="mobilegl_relaxed_semantics_title">Relaxed GL semantics (legacy app leniencies)</string>
+    <string name="mobileglx_pipeline_cache_dir_title">Vulkan pipeline cache dir (empty = auto)</string>
+    <string name="mobileglx_async_threads_title">Shader compile threads (0 = auto)</string>
+    <string name="mobileglx_optimistic_status_title">Optimistic shader status (Iris pack load)</string>
     <string name="mobilegl_default_backend" translatable="false">DirectGLES</string>
 </resources>

@@ -3133,6 +3133,21 @@ void main() {
 
         RecreateSwapchain();
 
+        // Disk-backed VkPipelineCache (MobileGLX): scope the blob file to this exact driver so
+        // a cache can never cross vendors/driver versions. The factory resolves the directory
+        // itself (explicit MOBILEGL_MAGMA_PIPELINE_CACHE_DIR, else the Android host-app cache
+        // dir, else memory-only); every failure degrades silently.
+        m_config.PipelineCacheDir = MG_Config::Features.MagmaPipelineCacheDir;
+        m_config.PipelineCacheUUIDHex.clear();
+        m_config.PipelineCacheUUIDHex.reserve(32);
+        static constexpr char kHexDigits[] = "0123456789abcdef";
+        for (int i = 0; i < 16; ++i) {
+            const Uint8 uuidByte = m_physicalDevice.properties.pipelineCacheUUID[i];
+            m_config.PipelineCacheUUIDHex.push_back(kHexDigits[uuidByte >> 4]);
+            m_config.PipelineCacheUUIDHex.push_back(kHexDigits[uuidByte & 0xF]);
+        }
+        m_config.PipelineCacheDriverVersion = m_physicalDevice.properties.driverVersion;
+
         m_pipelineFactory = MakeUnique<PipelineFactory>(m_device, m_config);
         MOBILEGL_ASSERT(m_pipelineFactory != nullptr, "PipelineFactory creation failed.");
         {

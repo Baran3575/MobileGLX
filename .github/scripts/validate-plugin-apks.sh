@@ -50,6 +50,9 @@ require 'key:MOBILEGL_MAGMA_FRAMESINFLIGHT' "$plugin_resource_text" 'V2 Magma fr
 require 'key:MOBILEGL_ESPRYT_AVOID_SAMPLER_MIPMAP_MIN_FILTER' "$plugin_resource_text" 'V2 sampler workaround toggle'
 require 'key:MOBILEGL_COHERENT_AS_FLUSH' "$plugin_resource_text" 'V2 coherent-as-flush toggle'
 require 'key:MOBILEGL_RELAXED_SEMANTICS' "$plugin_resource_text" 'V2 relaxed-semantics toggle'
+require 'key:MOBILEGL_MAGMA_PIPELINE_CACHE_DIR' "$plugin_resource_text" 'V2 pipeline cache dir setting'
+require 'key:MOBILEGL_ASYNC_SHADER_COMPILE_THREADS' "$plugin_resource_text" 'V2 shader threads setting'
+require 'key:MOBILEGL_ASYNC_OPTIMISTIC_SHADER_STATUS' "$plugin_resource_text" 'V2 optimistic-status toggle'
 require 'key:MOBILEGL_ESPRYT_USE_ANGLE' "$plugin_resource_text" 'V2 ANGLE toggle'
 # MobileGLX Minecraft 26.3 odağı: plugin yalnızca 26.3'e hedeflenir.
 require '26.3' "$plugin_resource_text" 'V2 MC 26.3 target'

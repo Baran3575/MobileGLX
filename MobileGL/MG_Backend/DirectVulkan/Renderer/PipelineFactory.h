@@ -188,9 +188,21 @@ namespace MobileGL::MG_Backend::DirectVulkan {
 
         VkPipeline CreatePipeline(const PipelineCreatePayload& payload) const;
 
+        // Writes the driver blob to m_pipelineCachePath (no-op when memory-only).
+        void PersistPipelineCacheToDisk();
+
         VkDevice m_device = VK_NULL_HANDLE;
         const VulkanRendererConfig& m_config;
         VkPipelineCache m_pipelineCache = VK_NULL_HANDLE;
+        // Disk persistence for the driver blob (MOBILEGL_MAGMA_PIPELINE_CACHE_DIR / Android
+        // auto path). Empty path = memory-only. UUID + driver version scope the file so a
+        // blob can never cross drivers; see ResolvePipelineCachePath in the .cpp.
+        String m_pipelineCachePath;
+        String m_pipelineCacheUUIDHex;
+        Uint32 m_pipelineCacheDriverVersion = 0;
+        // Periodic-persist bookkeeping: frame of the last flush + pipelines created since.
+        Uint64 m_lastPersistFrame = 0;
+        Uint32 m_pipelinesCreatedSincePersist = 0;
         UnorderedMap<HashType, PipelineCacheEntry> m_cache;
         // Monotonic frame-boundary counter (bumped in OnFrameBoundary) for cache aging.
         Uint64 m_frameCounter = 0;
