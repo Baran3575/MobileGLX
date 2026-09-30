@@ -64,6 +64,21 @@ bakıp backend'i ona göre düzeltelim.
   `DirectVulkan` dene — driver'a direkt konuşur, ANGLE katmanı yoktur.
   Disk pipeline cache otomatiktir (ilk açılış derler, sonrakiler atlar).
 
+### FPS stabilizasyonu (20↔330 salınımı)
+
+Önce oyunu åtgär: **FPS'yi sınırla** (MC Video Settings → Max Framerate 60/90
+veya launcher vsync). Sınırsız fps'de 330 gören sayaç ile 20'lik takılma aynı
+ekranda normal görünür; sınır, salınımı değil takılmayı gizler ama tabloyu
+okunur kılar. Render distance/gölge (Iris) kıs, Sodium varsa açık tut.
+
+MobileGLX tarafı (Vulkan):
+- Command-buffer split eşiği fork'ta **32768** (upstream 16384): ağır chunk
+  frame'lerinde submit + render-pass STORE/LOAD sayısı yarıya iner.
+- Takılma teşhisi için her 600 frame'de logcat'e tek satır düşer:
+  `DirectVulkan: pacing last 600 frames: ...` (ort. fps, max ms, 50ms üstü
+  takılma sayısı, split artışı). PC'den `adb logcat | grep "pacing last"`
+  ile alıp at — bir sonraki optimizasyon turunu bu sayıya göre yapacağım.
+
 ## Backend ve Varsayılanlar
 
 | Ayar | Varsayılan | Neden |

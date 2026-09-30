@@ -19,6 +19,7 @@
 #include "VkClearManager.h"
 #include "VkRenderPassManager.h"
 #include "VkSamplerManager.h"
+#include <chrono>
 #include "VkTextureManager.h"
 #include "VkTimerQueryManager.h"
 #include "MG_Util/Math/VectorTypes.h"
@@ -518,6 +519,18 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         // recording begins (OnFrameCommandRecordingBegan). See SplitOversizedRecording.
         Uint32 m_drawsInRecording = 0;
         Uint64 m_oversizedRecordingSplits = 0;
+        // Frame pacing telemetry (MobileGLX): near-zero-cost hitch log for MC stutter
+        // triage. LogPresentPacing runs once per Present: avg/max frame time, frames over
+        // 50 ms, and oversized-recording splits since the last line. One MGLOG_I per 600
+        // frames; everything else is a few counter updates.
+        Uint64 m_pacingWindowFrames = 0;
+        Uint64 m_pacingWindowHitches = 0;
+        double m_pacingWindowTotalMs = 0.0;
+        double m_pacingWindowMaxMs = 0.0;
+        Uint64 m_pacingSplitsAtLastLog = 0;
+        std::chrono::steady_clock::time_point m_lastPresentTime{};
+        Bool m_lastPresentTimeValid = false;
+        void LogPresentPacing();
 
         NativeWindowType m_window = 0;
         void* m_platformDisplay = nullptr;

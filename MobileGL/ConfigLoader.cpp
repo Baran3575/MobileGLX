@@ -178,7 +178,7 @@ namespace MobileGL::MG_ConfigLoader {
         features.MagmaR11G11B10FFallback = QueryEnvFlag("MOBILEGL_MAGMA_R11G11B10F_FALLBACK");
         features.MagmaFramesInFlight = QueryEnvUint32("MOBILEGL_MAGMA_FRAMESINFLIGHT", 3, 1, 64);
         features.MagmaMaxDrawsPerCommandBuffer =
-            QueryEnvUint32("MOBILEGL_MAGMA_MAX_DRAWS_PER_COMMAND_BUFFER", 16384, 0, 1u << 24);
+            QueryEnvUint32("MOBILEGL_MAGMA_MAX_DRAWS_PER_COMMAND_BUFFER", 32768, 0, 1u << 24);
         features.MagmaDescriptorTrimFrames = QueryEnvUint32("MOBILEGL_MAGMA_DESCRIPTOR_TRIM_FRAMES", 120, 0, 1u << 20);
         QueryEnvVariable("MOBILEGL_MAGMA_PIPELINE_CACHE_DIR", features.MagmaPipelineCacheDir, "");
         features.EsprytAvoidSamplerMipmapMinFilter =

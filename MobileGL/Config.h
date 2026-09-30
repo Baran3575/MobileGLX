@@ -137,7 +137,11 @@ namespace MobileGL::MG_Config {
         // Drivers back a command buffer with GPU memory that is only returned when the buffer is
         // freed; Adreno maps it into the process in 16 KiB chunks, so one ~1M-draw loading frame
         // exhausts vm.max_map_count. See VulkanRenderer::SplitOversizedRecording.
-        Uint32 MagmaMaxDrawsPerCommandBuffer = 16384;
+        // MobileGLX default 32768 (upstream 16384): every split ends the render pass with
+        // STORE and re-begins it with LOAD, so halving the split count on heavy Minecraft
+        // frames (Sodium chunk batches) measurably cuts submit + tile traffic; the
+        // frames-in-flight throttle still bounds total command memory either way.
+        Uint32 MagmaMaxDrawsPerCommandBuffer = 32768;
         // MOBILEGL_MAGMA_DESCRIPTOR_TRIM_FRAMES: how many consecutive frames (strictly, BeginFrame
         // epochs) a frame slot's descriptor pools must stay under a quarter full before Magma
         // hands the slot's whole set cache back and lets it re-grow. 0 = never trim. A loading

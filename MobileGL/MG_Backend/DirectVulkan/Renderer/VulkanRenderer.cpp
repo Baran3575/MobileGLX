@@ -12885,6 +12885,34 @@ void main() {
         return m_timerQueryManager ? m_timerQueryManager->TimestampNs(record) : 0;
     }
 
+    void VulkanRenderer::LogPresentPacing() {
+        const auto now = std::chrono::steady_clock::now();
+        if (m_lastPresentTimeValid) {
+            const double ms =
+                std::chrono::duration<double, std::milli>(now - m_lastPresentTime).count();
+            ++m_pacingWindowFrames;
+            m_pacingWindowTotalMs += ms;
+            if (ms > m_pacingWindowMaxMs) m_pacingWindowMaxMs = ms;
+            if (ms > 50.0) ++m_pacingWindowHitches;
+            if (m_pacingWindowFrames >= 600) {
+                const double avg = m_pacingWindowTotalMs / static_cast<double>(m_pacingWindowFrames);
+                MGLOG_I("DirectVulkan: pacing last 600 frames: avg %.1f fps (%.2f ms), max %.1f ms, "
+                        "hitches(>50ms) %llu, oversized splits +%llu",
+                        1000.0 / (avg > 0.0 ? avg : 1.0), avg, m_pacingWindowMaxMs,
+                        static_cast<unsigned long long>(m_pacingWindowHitches),
+                        static_cast<unsigned long long>(m_oversizedRecordingSplits -
+                                                        m_pacingSplitsAtLastLog));
+                m_pacingWindowFrames = 0;
+                m_pacingWindowHitches = 0;
+                m_pacingWindowTotalMs = 0.0;
+                m_pacingWindowMaxMs = 0.0;
+                m_pacingSplitsAtLastLog = m_oversizedRecordingSplits;
+            }
+        }
+        m_lastPresentTime = now;
+        m_lastPresentTimeValid = true;
+    }
+
     void VulkanRenderer::Present() {
         if (m_swapchainObject.GetHandle() == VK_NULL_HANDLE || m_presentSuspended) {
             // No usable swapchain: the window was zero-area at initialization, or
@@ -13096,6 +13124,7 @@ void main() {
         // descriptor set per draw for the whole frame; it would also be unsafe
         // after a mid-frame FlushPendingCommands, which does not wait.)
         m_uniformManager->BeginFrame(m_frameContext.GetCurrentFrameIndex());
+        LogPresentPacing();
     }
 
     void VulkanRenderer::CreateInstance() {
