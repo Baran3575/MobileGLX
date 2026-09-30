@@ -85,6 +85,7 @@ jobs:
       - name: Build plugin APK
         run: gradle --no-daemon -p android-plugin :app:assemblePluginRelease -Pmobilegl.apkSuffix="${GITHUB_SHA}" -Pmobilegl.logLevel=MOBILEGL_LOG_LEVEL_INFO --parallel --max-workers "$(nproc)"
         env:
+          GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=1g
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
@@ -127,6 +128,7 @@ jobs:
       - name: Build retrace APK
         run: gradle --no-daemon -p android-plugin :app:assembleTraceRelease -Pmobilegl.apkSuffix="${GITHUB_SHA}" -Pmobilegl.debuggableRelease=true -Pmobilegl.logLevel=MOBILEGL_LOG_LEVEL_INFO --parallel --max-workers "$(nproc)"
         env:
+          GRADLE_OPTS: -Xmx4g -XX:MaxMetaspaceSize=1g
           SIGNING_STORE_PASSWORD: ${{ secrets.SIGNING_STORE_PASSWORD }}
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}

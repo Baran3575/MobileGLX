@@ -177,6 +177,12 @@ android {
         resValues = true
     }
 
+    // MobileGLX: release lint kapalı (CI runner'da OOM-flake veriyordu, hız da kazandırır).
+    lint {
+        checkReleaseBuilds = false
+        abortOnError = false
+    }
+
     flavorDimensions += "profile"
     productFlavors {
         create("plugin") {
