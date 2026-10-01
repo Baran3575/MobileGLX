@@ -7,17 +7,20 @@ odaklı fork'udur.
 geliştiriliyor. MobileGLX, MobileGL'in güncel çekirdeğini alıp Minecraft için
 varsayılanları, paket kimliğini ve build altyapısını Minecraft'a göre ayarlar.
 
-## Desteklenen Sürüm (şu an)
+## Desteklenen Sürümler (tek APK)
 
-| Bileşen | Sürüm |
-|---|---|
-| Minecraft Java | **26.4-snapshot-2** (29 Eylül 2026) |
-| Yükleyici | Vanilla **+** Fabric |
-| Fabric Loader | 0.19.5 (sürüme duyarsız) |
-| Fabric API | 0.161.x+26.4 |
-| Java | 25 |
-| Data pack formatı | 122.1 |
-| Resource pack formatı | 99.0 |
+| Bileşen | 26.3 | 26.4-snapshot-2 |
+|---|---|---|
+| Minecraft Java | **26.3** Wilderness Bound (protokol 777) | **26.4-snapshot-2** (29 Eyl 2026) |
+| Yükleyici | Vanilla **+** Fabric | Vanilla **+** Fabric |
+| Fabric Loader | 0.19.5 | 0.19.5 (sürüme duyarsız) |
+| Fabric API | 0.161.0+26.3 | 0.161.x+26.4 |
+| Java | 25 | 25 |
+| Data / Resource pack | 121.0 / 97.1 | 122.1 / 99.0 |
+
+Plugin `minMCVer = 26.3`, `maxMCVer = 26.4-snapshot-2` bildirir; ZL2 iki
+profili de listeler. OIT notları: 26.3 wavelet, 26.4 depth-bin — ikisi de
+desteklenir (detay aşağıda).
 
 > Not: Paper 26.4 yok; bu fork **vanilla + Fabric snapshot**'ı hedefler.
 > Yeni MC sürümleri için `mobileGlxMcVersion` tek yerden büyütülür
@@ -50,8 +53,8 @@ varsayılanları, paket kimliğini ve build altyapısını Minecraft'a göre aya
 1. ZL2 v2.6.1'i kurun, `MobileGLX-plugin-release-*.apk` dosyasını kurun.
 2. ZL2 → Ayarlar → Renderer → **MobileGLX** (V2 plugin olarak görünür;
    V1 fallback `fclPlugin`/`pojavEnv` de içerir, eski launcher'larda da çalışır).
-3. Oyunu **Minecraft 26.4-snapshot-2 vanilla veya Fabric** profiliyle başlatın.
-   Plugin `minMCVer/maxMCVer = 26.4-snapshot-2` bildirdiği için ZL2 onu bu profillerde listeler.
+3. Oyunu **Minecraft 26.3 veya 26.4-snapshot-2** (vanilla veya Fabric) profiliyle başlatın.
+   Plugin `minMCVer = 26.3`, `maxMCVer = 26.4-snapshot-2` bildirdiği için ZL2 iki profili de listeler.
 4. Backend: önce `DirectGLES` (varsayılan). Vulkan 1.2+ cihazda takılma olursa
    `DirectVulkan` + disk pipeline cache (otomatik) devreye girer.
 

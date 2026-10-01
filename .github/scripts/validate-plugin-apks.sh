@@ -55,8 +55,9 @@ require 'key:MOBILEGL_MAGMA_PIPELINE_CACHE_DIR' "$plugin_resource_text" 'V2 pipe
 require 'key:MOBILEGL_ASYNC_SHADER_COMPILE_THREADS' "$plugin_resource_text" 'V2 shader threads setting'
 require 'key:MOBILEGL_ASYNC_OPTIMISTIC_SHADER_STATUS' "$plugin_resource_text" 'V2 optimistic-status toggle'
 require 'key:MOBILEGL_ESPRYT_USE_ANGLE' "$plugin_resource_text" 'V2 ANGLE toggle'
-# MobileGLX Minecraft odağı: plugin yalnızca desteklenen sürüme hedeflenir.
-require '26.4-snapshot-2' "$plugin_resource_text" 'V2 MC target version'
+# MobileGLX Minecraft odağı: tek APK, destek aralığındaki tüm sürümler.
+require '26.3' "$plugin_resource_text" 'V2 min MC version'
+require '26.4-snapshot-2' "$plugin_resource_text" 'V2 max MC version'
 
 if [[ $(grep -Fc 'fclPlugin_V2' <<<"$plugin_manifest") -ne 1 ]]; then
   echo '::error::Plugin manifest must expose exactly one V2 descriptor' >&2

@@ -73,9 +73,10 @@ val mobileGlApkSuffix = (findProperty("mobilegl.apkSuffix") ?: System.getenv("MO
     .toString()
     .ifBlank { "nogit" }
 
-// MobileGLX: Minecraft Java odağı. Desteklenen sürümler tek yerden yönetilir.
-val mobileGlxMcVersion = "26.4-snapshot-2"
-val mobileGlxMcSupportNote = "vanilla + Fabric (Loader 0.19.5, Fabric API 0.161.x+26.4, Java 25)"
+// MobileGLX: Minecraft Java odağı. Tek APK iki sürümü kapsar (aralık).
+val mobileGlxMcMinVersion = "26.3"
+val mobileGlxMcMaxVersion = "26.4-snapshot-2"
+val mobileGlxMcSupportNote = "vanilla + Fabric (Loader 0.19.5, Fabric API 0.161.x, Java 25)"
 
 val pluginRendererConfig = buildJsonValue {
     renderer(
@@ -110,8 +111,8 @@ val pluginRendererConfig = buildJsonValue {
             customizable("MOBILEGL_ASYNC_SHADER_COMPILE_THREADS", "0", RendererConfig.MetaString("mobileglx_async_threads_title"))
             toggleable("MOBILEGL_ASYNC_OPTIMISTIC_SHADER_STATUS", "1", false, RendererConfig.MetaString("mobileglx_optimistic_status_title"))
         },
-        minMCVer = mobileGlxMcVersion,
-        maxMCVer = mobileGlxMcVersion,
+        minMCVer = mobileGlxMcMinVersion,
+        maxMCVer = mobileGlxMcMaxVersion,
     )
 }
 
@@ -128,7 +129,7 @@ android {
         versionCode = mobileGlVersionMajor * 1_000_000 + mobileGlVersionMinor * 10_000 + mobileGlMonthlyRevision
         // Upstream sürüm şeması korunur (versionCode geriye gitmesin diye Minor düşürülmez);
         // desteklenen MC sürümü suffix olarak eklenir.
-        versionName = "%d.%02d.%s-mc%s".format(mobileGlVersionMajor, mobileGlVersionMinor, mobileGlGitShortHash, mobileGlxMcVersion)
+        versionName = "%d.%02d.%s-mc%s-%s".format(mobileGlVersionMajor, mobileGlVersionMinor, mobileGlGitShortHash, mobileGlxMcMinVersion, mobileGlxMcMaxVersion)
         resValue("string", "config", pluginRendererConfig)
 
         manifestPlaceholders.putAll(legacyManifest {
@@ -136,8 +137,8 @@ android {
             rendererName = "MobileGLX"
             rendererLib = "libMobileGL.so"
             eglLib = "/libMobileGL.so"
-            minMCVer = mobileGlxMcVersion
-            maxMCVer = mobileGlxMcVersion
+            minMCVer = mobileGlxMcMinVersion
+            maxMCVer = mobileGlxMcMaxVersion
             boatEnv {
                 put("LIBGL_ES", "3")
                 put("POJAV_RENDERER", "opengles3")
