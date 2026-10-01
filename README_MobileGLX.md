@@ -11,17 +11,31 @@ varsayılanları, paket kimliğini ve build altyapısını Minecraft'a göre aya
 
 | Bileşen | Sürüm |
 |---|---|
-| Minecraft Java | **26.3** (Wilderness Bound, 15 Eylül 2026, protokol 777) |
+| Minecraft Java | **26.4-snapshot-2** (29 Eylül 2026) |
 | Yükleyici | Vanilla **+** Fabric |
-| Fabric Loader | 0.19.5 |
-| Fabric API | 0.161.0+26.3 |
+| Fabric Loader | 0.19.5 (sürüme duyarsız) |
+| Fabric API | 0.161.x+26.4 |
 | Java | 25 |
-| Data pack formatı | 121.0 |
-| Resource pack formatı | 97.1 |
+| Data pack formatı | 122.1 |
+| Resource pack formatı | 99.0 |
 
-> Not: Paper 26.3 hâlâ deneysel (alpha) kanalda; bu fork **vanilla + Fabric 26.3**'ü
-> hedefler. Yeni MC sürümleri için `mobileGlxMcVersion` tek yerden büyütülür
+> Not: Paper 26.4 yok; bu fork **vanilla + Fabric snapshot**'ı hedefler.
+> Yeni MC sürümleri için `mobileGlxMcVersion` tek yerden büyütülür
 > (`android-plugin/app/build.gradle.kts` en üstü).
+
+### 26.4-snapshot-2 grafik notları (doğrulandı, client jar shader'larından)
+
+- OIT wavelet → **depth-bin accumulation** (`OIT_WAVELET_RANK` kalktı,
+  `OIT_NUMBER_OF_DEPTH_BINS` / `OIT_TRANSMITTANCE_TARGET_COUNT` geldi).
+- `clouds.fsh` OIT'siz/offscreen, yeni **`blit_clouds.fsh`** (gl_FragDepth'li OIT
+  blit), yeni **`sky_occluder.vsh/fsh`**, `screenquad` → **`screentriangle.vsh`**.
+- Transpiler değişikliği gerekmedi: hardcoded OIT/define bağımlılığı yok
+  (doğrulandı), `gl_FragDepth`/discard/texelFetch/gl_VertexID hepsi mevcut
+  yollardan geçiyor; MIN/MAX depth-write quirk'i kapsamlı dar olduğu için
+  yanlış ateşlenmiyor.
+- 26.4 oyunda "Graphics API: Default = Prefer Vulkan" diyor; plugin
+  `POJAV_RENDERER=opengles3` ile GL yolunu zorladığı için davranış değişmez —
+  MobileGLX GL çevirisi yapmaya devam eder.
 
 ## Kurulum (Android)
 
@@ -36,8 +50,8 @@ varsayılanları, paket kimliğini ve build altyapısını Minecraft'a göre aya
 1. ZL2 v2.6.1'i kurun, `MobileGLX-plugin-release-*.apk` dosyasını kurun.
 2. ZL2 → Ayarlar → Renderer → **MobileGLX** (V2 plugin olarak görünür;
    V1 fallback `fclPlugin`/`pojavEnv` de içerir, eski launcher'larda da çalışır).
-3. Oyunu **Minecraft 26.3 vanilla veya Fabric 26.3** profiliyle başlatın.
-   Plugin `minMCVer/maxMCVer = 26.3` bildirdiği için ZL2 onu 26.3 profillerinde listeler.
+3. Oyunu **Minecraft 26.4-snapshot-2 vanilla veya Fabric** profiliyle başlatın.
+   Plugin `minMCVer/maxMCVer = 26.4-snapshot-2` bildirdiği için ZL2 onu bu profillerde listeler.
 4. Backend: önce `DirectGLES` (varsayılan). Vulkan 1.2+ cihazda takılma olursa
    `DirectVulkan` + disk pipeline cache (otomatik) devreye girer.
 
@@ -76,7 +90,8 @@ MobileGLX tarafı (Vulkan):
   frame'lerinde submit + render-pass STORE/LOAD sayısı yarıya iner.
 - Takılma teşhisi (PC/adb gerekmez): her 600 frame'de oyun klasörüne
   `mobileglx_pacing.log` dosyasına tek satır eklenir (ort. fps, max ms, 50ms
-  üstü takılma sayısı, split artışı; dosya 64KB'ta döner). Oyun kapalıyken
+  üstü takılma, split artışı, derlenen pipeline sayısı, split fence beklemesi;
+  dosya 64KB'ta döner). Oyun kapalıyken
   ZL2'nin dosya yöneticisinden instances klasöründe bulup içeriğini at —
   bir sonraki turu bu sayıya göre gireceğim. (Klasöre yazılamazsa logcat'e
   düşmeye devam eder.)
@@ -124,14 +139,14 @@ MobileGL çekirdeği üzerinde:
 
 | Workflow | Tetikleyici | Çıktı |
 |---|---|---|
-| `MobileGLX APK` (`.github/workflows/apk.yml`) | `dev`, `main`, `mc26.3*` push'ları + tag | plugin + trace APK (artifact) + emulator retrace |
-| `MobileGLX Release` (`.github/workflows/release.yml`) | `mc26.3*` / `v*` tag push'u | GitHub **Release**'e plugin APK eklenir |
+| `MobileGLX APK` (`.github/workflows/apk.yml`) | `dev`, `main`, `mc26.3*`, `mc26.4*` push'ları + tag | plugin + trace APK (artifact) + emulator retrace |
+| `MobileGLX Release` (`.github/workflows/release.yml`) | `mc26.4*` / `v*` tag push'u | GitHub **Release**'e plugin APK eklenir |
 
 Release çıkarmak için:
 
 ```sh
-git tag mc26.3-1
-git push origin mc26.3-1
+git tag mc26.4-snapshot-2-1
+git push origin mc26.4-snapshot-2-1
 ```
 
 İmza notu: repo secret'larında `SIGNING_STORE_PASSWORD`, `SIGNING_KEY_ALIAS`,
@@ -143,7 +158,7 @@ build'leri) debug anahtarıyla imzalanır — APK her durumda kurulabilir.
 - Paket adı: `top.mobileglx.plugin` (trace: `top.mobileglx.plugin.trace`).
   Upstream `top.mobilegl.plugin` ile çakışmaz.
 - Native lib adı değişmedi: `libMobileGL.so` (CMake hedefi aynı).
-- Sürüm şeması upstream ile aynı tutulur (`26.08.<hash>`), sonuna `-mc26.3`
+- Sürüm şeması upstream ile aynı tutulur (`26.08.<hash>`), sonuna `-mc<oyun-sürümü>`
   suffix'i eklenir. `versionCode` geriye gitmesin diye Minor düşürülmedi.
 - Yeni MC sürümü desteği eklemek: `mobileGlxMcVersion` değerini büyütün,
   `README_MobileGLX.md` tablosunu güncelleyin, tag'leyip release alın.

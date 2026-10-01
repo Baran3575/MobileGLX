@@ -7,6 +7,7 @@ on:
       - main
       - mc26.3
       - mc26.3-minecraft
+      - mc26.4*
       - Feat/Backend-Direct-GLES
       - Feat/Backend-Direct-Vulkan
     tags:

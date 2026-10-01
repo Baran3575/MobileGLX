@@ -519,6 +519,10 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         // recording begins (OnFrameCommandRecordingBegan). See SplitOversizedRecording.
         Uint32 m_drawsInRecording = 0;
         Uint64 m_oversizedRecordingSplits = 0;
+        // Split throttle fence waits (UINT64_MAX): each one is a full CPU stall behind the
+        // GPU. Counted for the pacing line; a climbing number on heavy frames means the
+        // frame's command memory, not the split threshold, is the bottleneck.
+        Uint64 m_splitThrottleWaits = 0;
         // Frame pacing telemetry (MobileGLX): near-zero-cost hitch log for MC stutter
         // triage. LogPresentPacing runs once per Present: avg/max frame time, frames over
         // 50 ms, and oversized-recording splits since the last line. One MGLOG_I per 600
@@ -528,6 +532,8 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         double m_pacingWindowTotalMs = 0.0;
         double m_pacingWindowMaxMs = 0.0;
         Uint64 m_pacingSplitsAtLastLog = 0;
+        Uint64 m_pacingPipesAtLastLog = 0;
+        Uint64 m_pacingWaitsAtLastLog = 0;
         std::chrono::steady_clock::time_point m_lastPresentTime{};
         Bool m_lastPresentTimeValid = false;
         void LogPresentPacing();

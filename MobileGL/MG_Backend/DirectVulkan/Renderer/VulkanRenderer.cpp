@@ -12732,6 +12732,7 @@ void main() {
                 break;
             }
             const VkResult waitResult = vkWaitForFences(m_device, 1, &oldest.fence, VK_TRUE, UINT64_MAX);
+            ++m_splitThrottleWaits;
             if (waitResult != VK_SUCCESS) {
                 MGLOG_E_ONCE("SplitOversizedRecording: vkWaitForFences returned %d", waitResult);
                 break;
@@ -12900,14 +12901,19 @@ void main() {
             if (ms > 50.0) ++m_pacingWindowHitches;
             if (m_pacingWindowFrames >= 600) {
                 const double avg = m_pacingWindowTotalMs / static_cast<double>(m_pacingWindowFrames);
-                char line[256];
+                const Uint64 pipes =
+                    m_pipelineFactory != nullptr ? m_pipelineFactory->GetPipelineCreationCount() : 0;
+                char line[320];
                 std::snprintf(line, sizeof(line),
                               "pacing last 600 frames: avg %.1f fps (%.2f ms), max %.1f ms, "
-                              "hitches(>50ms) %llu, oversized splits +%llu",
+                              "hitches(>50ms) %llu, splits +%llu, pipelines +%llu, split-waits +%llu",
                               1000.0 / (avg > 0.0 ? avg : 1.0), avg, m_pacingWindowMaxMs,
                               static_cast<unsigned long long>(m_pacingWindowHitches),
                               static_cast<unsigned long long>(m_oversizedRecordingSplits -
-                                                              m_pacingSplitsAtLastLog));
+                                                              m_pacingSplitsAtLastLog),
+                              static_cast<unsigned long long>(pipes - m_pacingPipesAtLastLog),
+                              static_cast<unsigned long long>(m_splitThrottleWaits -
+                                                              m_pacingWaitsAtLastLog));
                 MGLOG_I("DirectVulkan: %s", line);
                 AppendPacingLogLine(line);
                 m_pacingWindowFrames = 0;
@@ -12915,6 +12921,8 @@ void main() {
                 m_pacingWindowTotalMs = 0.0;
                 m_pacingWindowMaxMs = 0.0;
                 m_pacingSplitsAtLastLog = m_oversizedRecordingSplits;
+                m_pacingPipesAtLastLog = pipes;
+                m_pacingWaitsAtLastLog = m_splitThrottleWaits;
             }
         }
         m_lastPresentTime = now;

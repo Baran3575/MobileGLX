@@ -74,8 +74,8 @@ val mobileGlApkSuffix = (findProperty("mobilegl.apkSuffix") ?: System.getenv("MO
     .ifBlank { "nogit" }
 
 // MobileGLX: Minecraft Java odağı. Desteklenen sürümler tek yerden yönetilir.
-val mobileGlxMcVersion = "26.3"
-val mobileGlxMcSupportNote = "vanilla + Fabric (Loader 0.19.5, Fabric API 0.161.0+26.3, Java 25)"
+val mobileGlxMcVersion = "26.4-snapshot-2"
+val mobileGlxMcSupportNote = "vanilla + Fabric (Loader 0.19.5, Fabric API 0.161.x+26.4, Java 25)"
 
 val pluginRendererConfig = buildJsonValue {
     renderer(

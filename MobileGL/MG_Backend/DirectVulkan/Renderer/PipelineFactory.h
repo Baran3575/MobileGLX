@@ -135,6 +135,8 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         // Full blob file path, or empty when the cache is memory-only. Used for
         // co-locating diagnostics (pacing log) with the cache.
         const String& GetCacheFilePath() const { return m_pipelineCachePath; }
+        // Lifetime count of compiled pipelines (misses). Monotonic; see m_pipelineCreations.
+        Uint64 GetPipelineCreationCount() const { return m_pipelineCreations; }
 
         // Frame boundary hook: ages the pipeline cache and destroys long-unused entries
         // (their command buffers retired many frames ago), mirroring
@@ -207,6 +209,9 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         // Periodic-persist bookkeeping: frame of the last flush + pipelines created since.
         Uint64 m_lastPersistFrame = 0;
         Uint32 m_pipelinesCreatedSincePersist = 0;
+        // Lifetime pipeline creations (cache misses that compiled). Read by the renderer's
+        // pacing line to separate compile-stutter from other hitches. Monotonic.
+        Uint64 m_pipelineCreations = 0;
         UnorderedMap<HashType, PipelineCacheEntry> m_cache;
         // Monotonic frame-boundary counter (bumped in OnFrameBoundary) for cache aging.
         Uint64 m_frameCounter = 0;

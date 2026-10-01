@@ -453,6 +453,7 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         m_cache.emplace(hash, PipelineCacheEntry{pipeline, payload.programHash, payload.renderPass,
                                                  m_frameCounter});
         ++m_pipelinesCreatedSincePersist;
+        ++m_pipelineCreations;
         return pipeline;
     }
 
