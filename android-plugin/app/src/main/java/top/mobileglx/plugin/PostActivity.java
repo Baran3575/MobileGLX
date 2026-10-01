@@ -20,6 +20,8 @@ import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import java.util.ArrayDeque;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.Map;
 
@@ -85,6 +87,22 @@ public final class PostActivity extends Activity {
     private static String cachedMcloFailure;
 
     private TextView mcloView;
+
+    /** WARN/FAIL filtresi için tüm check satırları (görünüm + status). */
+    private final ArrayList<View> checkRows = new ArrayList<>();
+    private final ArrayList<String> checkRowStatus = new ArrayList<>();
+    private boolean showProblemsOnly = false;
+    private Button filterButton;
+
+    /** Bench süresi seçimi (frame + warmup). */
+    private static int benchFrames = 120;
+    private static int benchWarmup = 30;
+    private TextView benchLengthLabel;
+    /** "Run All" zinciri: biten bench sonrakini başlatır. */
+    private static final ArrayDeque<String> benchChain = new ArrayDeque<>();
+
+    /** Kopyalama için son rapor. */
+    private String lastReportJson;
 
     private LinearLayout contentLayout;
     private TextView statusView;
@@ -166,6 +184,14 @@ public final class PostActivity extends Activity {
                 if (backend != null && json != null) {
                     renderBenchResult(backend, json);
                 }
+                // "Run All" zinciri: biten bench sonrakini başlatır.
+                String next;
+                synchronized (PostActivity.class) {
+                    next = benchChain.pollFirst();
+                }
+                if (next != null) {
+                    startBench(next);
+                }
             }
         };
         IntentFilter filter = new IntentFilter(BenchService.ACTION_RESULT);
@@ -190,9 +216,68 @@ public final class PostActivity extends Activity {
         }
         Intent intent = new Intent(this, BenchService.class);
         intent.putExtra(BenchService.EXTRA_BACKEND, backendType);
-        intent.putExtra(BenchService.EXTRA_FRAMES, 120);
-        intent.putExtra(BenchService.EXTRA_WARMUP, 30);
+        intent.putExtra(BenchService.EXTRA_FRAMES, benchFrames);
+        intent.putExtra(BenchService.EXTRA_WARMUP, benchWarmup);
         startService(intent);
+    }
+
+    /** Bench süresi seçici + "Run All" (sırayla tüm backend'ler). */
+    private void addBenchLengthSelector() {
+        benchLengthLabel = addText(benchLengthText(), 12, COLOR_INFO, false, dp(12));
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        contentLayout.addView(row, new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT));
+        addBenchLengthButton(row, "Quick", 60, 15);
+        addBenchLengthButton(row, "Standard", 120, 30);
+        addBenchLengthButton(row, "Long", 300, 60);
+        Button allButton = new Button(this);
+        allButton.setText("Run All");
+        allButton.setAllCaps(false);
+        allButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        allButton.setOnClickListener(v -> {
+            synchronized (PostActivity.class) {
+                benchChain.clear();
+                // Bilinen sıra: önce GLES, sonra Vulkan.
+                if (benchButtons.containsKey("DirectGLES")) benchChain.addLast("DirectGLES");
+                if (benchButtons.containsKey("DirectVulkan")) benchChain.addLast("DirectVulkan");
+                for (String key : benchButtons.keySet()) {
+                    if (!benchChain.contains(key)) benchChain.addLast(key);
+                }
+            }
+            String first;
+            synchronized (PostActivity.class) {
+                first = benchChain.pollFirst();
+            }
+            if (first != null) startBench(first);
+        });
+        LinearLayout.LayoutParams allParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        allParams.leftMargin = dp(8);
+        row.addView(allButton, allParams);
+    }
+
+    private static String benchLengthText() {
+        return "Bench length: " + benchFrames + " frames + " + benchWarmup + " warmup";
+    }
+
+    private void addBenchLengthButton(LinearLayout row, String label, int frames, int warmup) {
+        Button button = new Button(this);
+        button.setText(label);
+        button.setAllCaps(false);
+        button.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        button.setOnClickListener(v -> {
+            benchFrames = frames;
+            benchWarmup = warmup;
+            if (benchLengthLabel != null) benchLengthLabel.setText(benchLengthText());
+        });
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        params.rightMargin = dp(8);
+        row.addView(button, params);
     }
 
     private void renderBenchResult(String backendType, String json) {
@@ -214,8 +299,8 @@ public final class PostActivity extends Activity {
                 return;
             }
             container.addView(makeText(root.optString("renderer", ""), 11, COLOR_INFO, false));
-            String header = String.format(Locale.ROOT, "%-22s %10s %10s %9s",
-                    "case", "ns/op", "frame ms", "fps");
+            String header = String.format(Locale.ROOT, "%-22s %10s %10s %10s %7s %9s",
+                    "case", "ns/op", "med ms", "p95 ms", "stut", "fps");
             container.addView(makeText(header, 11, COLOR_DETAIL, true));
             JSONArray cases = root.optJSONArray("cases");
             if (cases == null) {
@@ -226,10 +311,12 @@ public final class PostActivity extends Activity {
                 if (row == null) {
                     continue;
                 }
-                String line = String.format(Locale.ROOT, "%-22s %10.1f %10.3f %9.1f",
+                String line = String.format(Locale.ROOT, "%-22s %10.1f %10.3f %10.3f %7d %9.1f",
                         row.optString("case", "?"),
                         row.optDouble("nsPerOp", 0),
                         row.optDouble("medianFrameMs", 0),
+                        row.optDouble("p95FrameMs", 0),
+                        row.optInt("stutterFrames", 0),
                         row.optDouble("fps", 0));
                 TextView view = makeText(line, 11,
                         row.optInt("glError", 0) != 0 ? COLOR_WARN : COLOR_TEXT, false);
@@ -354,14 +441,101 @@ public final class PostActivity extends Activity {
             return;
         }
         statusView.setText("Self-test complete.");
+        lastReportJson = json;
+        checkRows.clear();
+        checkRowStatus.clear();
+        addSummaryHeader(backends);
         for (int i = 0; i < backends.length(); ++i) {
             JSONObject backend = backends.optJSONObject(i);
             if (backend != null) {
                 renderBackendSection(backend);
             }
         }
+        addBenchLengthSelector();
         addMcloUploadSection(buildFullLogText(json, root, backends));
         addRawJsonSection(json);
+    }
+
+    /** En üst özet: backend verdict'leri + PASS/WARN/FAIL sayıları + filtre + kopyalama. */
+    private void addSummaryHeader(JSONArray backends) {
+        addText("Summary", 16, COLOR_TEXT, true, dp(12));
+        for (int i = 0; i < backends.length(); ++i) {
+            JSONObject backend = backends.optJSONObject(i);
+            if (backend == null) continue;
+            String name = backend.optString("backend", backend.optString("name", "backend"));
+            String verdict = backend.optString("verdict", "?");
+            int pass = 0, warn = 0, fail = 0;
+            JSONArray checks = backend.optJSONArray("checks");
+            if (checks != null) {
+                for (int j = 0; j < checks.length(); ++j) {
+                    JSONObject check = checks.optJSONObject(j);
+                    if (check == null) continue;
+                    switch (check.optString("status", "INFO").toUpperCase(Locale.ROOT)) {
+                        case "PASS": ++pass; break;
+                        case "WARN": ++warn; break;
+                        case "FAIL": ++fail; break;
+                        default: break;
+                    }
+                }
+            }
+            addText(sectionTitle(name) + ": " + verdict +
+                    " (" + pass + " pass, " + warn + " warn, " + fail + " fail)",
+                    13, verdictColor(verdict), true, dp(2));
+        }
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams rowParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.MATCH_PARENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        rowParams.topMargin = dp(8);
+        contentLayout.addView(row, rowParams);
+
+        filterButton = new Button(this);
+        filterButton.setText("Show problems only");
+        filterButton.setAllCaps(false);
+        filterButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        filterButton.setOnClickListener(v -> {
+            showProblemsOnly = !showProblemsOnly;
+            filterButton.setText(showProblemsOnly ? "Show all" : "Show problems only");
+            applyCheckFilter();
+        });
+        row.addView(filterButton);
+
+        Button copyButton = new Button(this);
+        copyButton.setText("Copy full report");
+        copyButton.setAllCaps(false);
+        copyButton.setTextSize(TypedValue.COMPLEX_UNIT_SP, 12);
+        copyButton.setOnClickListener(v -> copyFullReport());
+        LinearLayout.LayoutParams copyParams = new LinearLayout.LayoutParams(
+                LinearLayout.LayoutParams.WRAP_CONTENT,
+                LinearLayout.LayoutParams.WRAP_CONTENT);
+        copyParams.leftMargin = dp(8);
+        row.addView(copyButton, copyParams);
+    }
+
+    private void applyCheckFilter() {
+        for (int i = 0; i < checkRows.size(); ++i) {
+            String status = checkRowStatus.get(i).toUpperCase(Locale.ROOT);
+            boolean problem = status.equals("WARN") || status.equals("FAIL");
+            checkRows.get(i).setVisibility(
+                    !showProblemsOnly || problem ? View.VISIBLE : View.GONE);
+        }
+    }
+
+    private void copyFullReport() {
+        if (lastReportJson == null || lastReportJson.isEmpty()) return;
+        try {
+            ClipboardManager clipboard =
+                    (ClipboardManager) getSystemService(Context.CLIPBOARD_SERVICE);
+            if (clipboard == null) return;
+            JSONObject root = new JSONObject(lastReportJson);
+            JSONArray backends = extractBackends(root);
+            clipboard.setPrimaryClip(ClipData.newPlainText(
+                    "mobileglx-post", buildFullLogText(lastReportJson, root, backends)));
+            statusView.setText("Self-test complete. (report copied)");
+        } catch (Throwable t) {
+            Log.e(TAG, "copy report failed", t);
+        }
     }
 
     /**
@@ -683,12 +857,17 @@ public final class PostActivity extends Activity {
 
         LinearLayout results = new LinearLayout(this);
         results.setOrientation(LinearLayout.VERTICAL);
-        LinearLayout.LayoutParams resultParams = new LinearLayout.LayoutParams(
+        // Bench tablosu yatay taşabilir; kaydırmalı tut ki sütunlar ezilmesin.
+        HorizontalScrollView scroll = new HorizontalScrollView(this);
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
                 LinearLayout.LayoutParams.MATCH_PARENT,
                 LinearLayout.LayoutParams.WRAP_CONTENT
         );
-        resultParams.topMargin = dp(4);
-        contentLayout.addView(results, resultParams);
+        scrollParams.topMargin = dp(4);
+        scroll.addView(results, new HorizontalScrollView.LayoutParams(
+                HorizontalScrollView.LayoutParams.WRAP_CONTENT,
+                HorizontalScrollView.LayoutParams.WRAP_CONTENT));
+        contentLayout.addView(scroll, scrollParams);
         benchResultContainers.put(backendType, results);
     }
 
@@ -745,6 +924,8 @@ public final class PostActivity extends Activity {
         line.addView(statusChip, chipParams);
 
         if (!hasDetail) {
+            checkRows.add(row);
+            checkRowStatus.add(status);
             return;
         }
 
@@ -761,6 +942,8 @@ public final class PostActivity extends Activity {
             detailView.setVisibility(expanded ? View.GONE : View.VISIBLE);
             indicatorView.setText(expanded ? INDICATOR_COLLAPSED : INDICATOR_EXPANDED);
         });
+        checkRows.add(row);
+        checkRowStatus.add(status);
     }
 
     /** Adds one initially-collapsed capability matrix for every reported target. */

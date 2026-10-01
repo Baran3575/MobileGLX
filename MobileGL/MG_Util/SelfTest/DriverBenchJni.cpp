@@ -295,16 +295,24 @@ namespace {
             }
             qsort(samples, static_cast<size_t>(g_frames), sizeof(uint64_t), CompareU64);
             const uint64_t median = samples[g_frames / 2];
+            const uint64_t p95 = samples[(static_cast<size_t>(g_frames) * 95) / 100];
+            const uint64_t maxSample = samples[g_frames - 1];
+            int stutter = 0;
+            for (int i = 0; i < g_frames; ++i) {
+                if (samples[i] > median * 2) ++stutter;
+            }
             const double frameMs = static_cast<double>(median) / 1e6;
             const double nsPerOp =
                 benchCase.opsPerFrame > 0 ? static_cast<double>(median) / static_cast<double>(benchCase.opsPerFrame) : 0.0;
             const GLenum caseError = glGetError();
 
-            char row[256];
+            char row[320];
             snprintf(row, sizeof row,
                      "%s{\"case\":\"%s\",\"frames\":%d,\"opsPerFrame\":%ld,\"medianFrameMs\":%.3f,"
+                     "\"p95FrameMs\":%.3f,\"maxFrameMs\":%.3f,\"stutterFrames\":%d,"
                      "\"nsPerOp\":%.1f,\"fps\":%.1f,\"glError\":%u}",
                      rows.empty() ? "" : ",", benchCase.name, g_frames, benchCase.opsPerFrame, frameMs,
+                     static_cast<double>(p95) / 1e6, static_cast<double>(maxSample) / 1e6, stutter,
                      nsPerOp, 1e9 / static_cast<double>(median), caseError);
             rows += row;
         }
