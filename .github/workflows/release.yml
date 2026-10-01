@@ -101,6 +101,13 @@ jobs:
           SIGNING_KEY_ALIAS: ${{ secrets.SIGNING_KEY_ALIAS }}
           SIGNING_KEY_PASSWORD: ${{ secrets.SIGNING_KEY_PASSWORD }}
 
+      - name: Rename plugin APK
+        run: |
+          shopt -s nullglob
+          apks=(android-plugin/app/build/outputs/apk/plugin/release/*.apk)
+          test "${#apks[@]}" -eq 1
+          mv "${apks[0]}" "android-plugin/app/build/outputs/apk/plugin/release/MobileGLX-plugin-release-${{ env.release_tag }}.apk"
+
       - name: Show ccache stats
         if: always()
         run: ccache --show-stats

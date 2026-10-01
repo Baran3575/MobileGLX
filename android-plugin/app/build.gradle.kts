@@ -239,19 +239,6 @@ androidComponents {
     onVariants(selector().withFlavor("profile" to "plugin")) { variant ->
         variant.packaging.jniLibs.excludes.add("**/libtrace_replay_runner.so")
     }
-    // Public Variant API (AGP internal ApkVariantOutputImpl kaldırıldı).
-    onVariants { variant ->
-        variant.outputs.forEach { output ->
-            val apk = output as? com.android.build.api.variant.Apk ?: return@forEach
-            apk.outputFileName.set(
-                when (variant.flavorName) {
-                    "plugin" -> "MobileGLX-plugin-release-$mobileGlApkSuffix.apk"
-                    "trace" -> "MobileGLX-plugin-trace-release-$mobileGlApkSuffix.apk"
-                    else -> return@forEach
-                }
-            )
-        }
-    }
 }
 
 dependencies {
