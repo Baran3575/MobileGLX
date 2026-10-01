@@ -1,8 +1,8 @@
 import com.android.build.gradle.LibraryExtension
 
 plugins {
-    id("com.android.application") version "8.6.0" apply false
-    id("com.android.library") version "8.6.0" apply false
+    id("com.android.application") version "9.4.0" apply false
+    id("com.android.library") version "9.4.0" apply false
 }
 
 fun Project.mobileGlAbiFilters(): List<String> {

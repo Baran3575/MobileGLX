@@ -132,6 +132,10 @@ namespace MobileGL::MG_Backend::DirectVulkan {
         VkPipeline GetOrCreatePipeline(const PipelineCreatePayload& payload);
         void DestroyAll();
 
+        // Full blob file path, or empty when the cache is memory-only. Used for
+        // co-locating diagnostics (pacing log) with the cache.
+        const String& GetCacheFilePath() const { return m_pipelineCachePath; }
+
         // Frame boundary hook: ages the pipeline cache and destroys long-unused entries
         // (their command buffers retired many frames ago), mirroring
         // VkRenderPassManager::OnPresent's sweep. Returns the number of pipelines
@@ -190,9 +194,6 @@ namespace MobileGL::MG_Backend::DirectVulkan {
 
         // Writes the driver blob to m_pipelineCachePath (no-op when memory-only).
         void PersistPipelineCacheToDisk();
-        // Full blob file path, or empty when the cache is memory-only. Used for
-        // co-locating diagnostics (pacing log) with the cache.
-        const String& GetCacheFilePath() const { return m_pipelineCachePath; }
 
         VkDevice m_device = VK_NULL_HANDLE;
         const VulkanRendererConfig& m_config;
