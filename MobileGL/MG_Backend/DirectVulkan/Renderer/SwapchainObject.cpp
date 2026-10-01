@@ -138,8 +138,13 @@ namespace MobileGL::MG_Backend::DirectVulkan {
 
     VkPresentModeKHR SwapchainObject::ChooseSwapchainPresentMode(
         const Vector<VkPresentModeKHR>& availablePresentModes, Optional<Int> swapInterval) {
+        // MobileGLX: unthrottled prefers MAILBOX over IMMEDIATE. Both uncap the frame
+        // rate, but IMMEDIATE tears and paces erratically against the compositor
+        // (the classic uncapped-Minecraft 20<->330 swing), while MAILBOX keeps the
+        // newest complete image tear-free with minimal extra latency. Fallback chain
+        // intact: drivers without MAILBOX still get IMMEDIATE, then FIFO.
         static constexpr VkPresentModeKHR s_unthrottledPresentModes[]{
-            VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_FIFO_KHR};
+            VK_PRESENT_MODE_MAILBOX_KHR, VK_PRESENT_MODE_IMMEDIATE_KHR, VK_PRESENT_MODE_FIFO_KHR};
         static constexpr VkPresentModeKHR s_vsyncPresentModes[]{VK_PRESENT_MODE_FIFO_KHR};
         static constexpr VkPresentModeKHR s_adaptiveVsyncPresentModes[]{VK_PRESENT_MODE_FIFO_RELAXED_KHR,
                                                                          VK_PRESENT_MODE_FIFO_KHR};
@@ -160,7 +165,8 @@ namespace MobileGL::MG_Backend::DirectVulkan {
             }
         }
 
-        // TODO: Properly rank other modes
+        // No ranked mode available: fall back to whatever the driver offers first
+        // (the loader guarantees at least FIFO).
         return availablePresentModes[0];
     }
 

@@ -91,6 +91,9 @@ okunur kılar. Render distance/gölge (Iris) kıs, Sodium varsa açık tut.
 MobileGLX tarafı (Vulkan):
 - Command-buffer split eşiği fork'ta **32768** (upstream 16384): ağır chunk
   frame'lerinde submit + render-pass STORE/LOAD sayısı yarıya iner.
+- Sınırsız fps'de (vsync kapalı) present modu **MAILBOX** tercih edilir
+  (upstream IMMEDIATE): tearing yok, compositor'a karşı daha düzgün pacing.
+  MAILBOX olmayan driver'da otomatik IMMEDIATE → FIFO düşülür.
 - Takılma teşhisi (PC/adb gerekmez): her 600 frame'de oyun klasörüne
   `mobileglx_pacing.log` dosyasına tek satır eklenir (ort. fps, max ms, 50ms
   üstü takılma, split artışı, derlenen pipeline sayısı, split fence beklemesi;
